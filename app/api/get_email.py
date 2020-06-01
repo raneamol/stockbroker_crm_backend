@@ -8,6 +8,8 @@ from email.header import decode_header
 import html2text
 #from app.settings import user, password
 
+from os import environ
+
 basedir=os.path.dirname(os.path.abspath(__file__))
 gmail_time = os.path.join(basedir, 'data/gmail_time.txt')
 gmail_mail = os.path.join(basedir, 'data/gmail_mail.txt')
@@ -15,7 +17,8 @@ gmail_mail = os.path.join(basedir, 'data/gmail_mail.txt')
 
 def get_email():
     #auth details
-    
+    user = environ.get("user")
+    password = environ.get("password")
     imap_url = "imap.gmail.com"
     
 

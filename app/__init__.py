@@ -11,12 +11,11 @@ from app.main.accounts import accounts
 
 from app.main.leads import leads
 
+from os import environ
 
 def create_app():
     app = Flask(__name__)
-
-    app.config.from_pyfile()
-    
+    app.config["MONGO_URI"] = environ.get("MONGO_URI")
     mongo.init_app(app)
    
     #register blueprints
