@@ -1,6 +1,6 @@
 import smtplib, ssl
 #from app.settings import user,password
-form os import environ
+from os import environ
 
 def send_email(receiver_email,message):
     user = environ.get("user")
