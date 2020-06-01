@@ -6,7 +6,7 @@ import os
 from datetime import timezone
 from email.header import decode_header
 import html2text
-from app.settings import user, password
+#from app.settings import user, password
 
 basedir=os.path.dirname(os.path.abspath(__file__))
 gmail_time = os.path.join(basedir, 'data/gmail_time.txt')

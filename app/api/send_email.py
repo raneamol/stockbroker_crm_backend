@@ -1,5 +1,5 @@
 import smtplib, ssl
-from app.settings import user,password
+#from app.settings import user,password
 
 def send_email(receiver_email,message):
 

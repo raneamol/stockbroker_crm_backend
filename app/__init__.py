@@ -12,10 +12,10 @@ from app.main.accounts import accounts
 from app.main.leads import leads
 
 
-def create_app(config_file='settings.py'):
+def create_app():
     app = Flask(__name__)
 
-    app.config.from_pyfile(config_file)
+    app.config.from_pyfile()
     
     mongo.init_app(app)
    
