@@ -30,7 +30,7 @@ def myconverter(o):
 #RENAME TO show_all_accounts--- DONE
 @accounts.route('/show_all_accounts')
 def show_all_accounts():
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 	accounts_view = accounts.find({}, {"_id" : 1, "name" : 1, "job_type" : 1, "company" : 1, "city" : 1, "email" : 1, "phone_number" : 1})
 	accounts_view = list(accounts_view)
 	accounts_view = json.dumps(accounts_view, default = myconverter)
@@ -39,10 +39,10 @@ def show_all_accounts():
 
 @accounts.route('/display_account/<usr_id>')
 def display_account(usr_id):
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 	account = accounts.find({"_id" : ObjectId(usr_id)})
 	account = list(account)
-	orders = mongo.db.Orders
+	orders = mongo.Orders
 	account = json.dumps(account[0], default=myconverter)
 
 	return account
@@ -73,7 +73,7 @@ def edit_account():
 	state = req_data["state"]
 	trading_accno = req_data["trading_accno"]
 
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 	account = accounts.find({"_id": usr_id})
 
 	new_values = {"$set":{
@@ -106,8 +106,8 @@ def complete_account_orders():
 	usr_id = req_data["account_id"]
 	
 
-	orders = mongo.db.Orders
-	accounts = mongo.db.Accounts
+	orders = mongo.Orders
+	accounts = mongo.Accounts
 
 	account_orders = orders.find({'account_id': usr_id})
 	
@@ -117,7 +117,7 @@ def complete_account_orders():
 
 	for i in order:
 		
-		activities = mongo.db.Activities
+		activities = mongo.Activities
 		activities.update({"_id":ObjectId(i["activity_id"]) },{ "$set": {"activity_type": "past"}})
 		try:
 			current_price = get_stock_price(i["company"])
@@ -143,9 +143,9 @@ for cost Rs."""+str(current_price)+""" has been transacted."""
 
 @accounts.route('/complete_all_orders')
 def complete_all_orders():	
-	accounts = mongo.db.Accounts
-	orders = mongo.db.Orders
-	activities = mongo.db.Activities	
+	accounts = mongo.Accounts
+	orders = mongo.Orders
+	activities = mongo.Activities	
 	account_of_orders= orders.find({"stage":3},{"account_id": 1})
 	account_ids = list(account_of_orders)
 	
@@ -199,7 +199,7 @@ def create_account():
 	state = req_data["state"]
 	trading_accno = req_data["trading_accno"]
 
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 
 	values = {
 	"city": city, 
@@ -245,10 +245,10 @@ def create_order():
 	"creation_date":datetime.datetime.now()
 }
 
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 	accounts.update({"_id": ObjectId(account_id)},{"$set" : {"latest_order_stage": 2}})
 
-	orders = mongo.db.Orders
+	orders = mongo.Orders
 	orders.insert(values)
 
 	return "Order Created"
@@ -257,7 +257,7 @@ def create_order():
 
 @accounts.route('/display_account_orders/<usr_id>')
 def display_user_orders(usr_id):
-	orders = mongo.db.Orders
+	orders = mongo.Orders
 
 	account_orders = orders.find({'account_id': usr_id})
 	account_orders = list(account_orders)
@@ -273,11 +273,11 @@ def order_stage_change():
 	_id = ObjectId(_id)
 	stage = req_data["stage"]
 
-	orders = mongo.db.Orders
-	accounts = mongo.db.Accounts
+	orders = mongo.Orders
+	accounts = mongo.Accounts
 	order = orders.find_one({"_id":_id})
 	account = accounts.find_one({"_id":ObjectId(order["account_id"])})
-	activities = mongo.db.Activities
+	activities = mongo.Activities
 
 	if stage == 2:
 		activities.update({"_id": ObjectId(order["activity_id"])},{"$set": {"activity_type": "past"}})
@@ -333,9 +333,9 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 
 @accounts.route('/show_all_orders')
 def show_all_orders():
-	orders = mongo.db.Orders
+	orders = mongo.Orders
 
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 
 	all_orders = orders.find()
 
@@ -352,11 +352,11 @@ def show_all_orders():
 #RENAME check_share_price_and_update_order
 @accounts.route('/convert_and_get_orders')
 def convert_and_get_orders():
-	orders = mongo.db.Orders
+	orders = mongo.Orders
 
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 
-	activities = mongo.db.Activities
+	activities = mongo.Activities
 
 	all_orders = orders.find()
 
@@ -402,9 +402,9 @@ def convert_and_get_orders():
 @accounts.route("/delete_order/<order_id>")
 def delete_order(order_id):
 
-	orders = mongo.db.Orders
+	orders = mongo.Orders
 	order = orders.find({"_id":ObjectId(order_id)})
-	activities = mongo.db.Activities
+	activities = mongo.Activities
 
 	order1 = orders.find({"$and": [ {"_id":ObjectId(order_id)}, {"activity_id":{"$exists":True}}]})
 	order_count = order1.count()
@@ -412,7 +412,7 @@ def delete_order(order_id):
 	if(order_count==1):
 		activities.delete_one({"_id": ObjectId(order[0]["activity_id"])})
 
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 	account_id = order[0]["account_id"]
 	
 	orders.delete_one({"_id" : ObjectId(order_id)})
@@ -438,7 +438,7 @@ def create_activity():
 	activity_type = req_data["activity_type"]
 	user_id = req_data["user_id"]
 
-	activities = mongo.db.Activities
+	activities = mongo.Activities
 
 	values = {
     "title" : title,
@@ -460,7 +460,7 @@ def create_activity():
 @accounts.route('/show_user_activities/<usr_id>')
 def show_user_activities(usr_id):
 	
-	activities = mongo.db.Activities
+	activities = mongo.Activities
 
 	activities.update_many({"activity_type": "future", "date": { "$lte" : datetime.datetime.now()}},{ "$set": { "elapsed": 1 ,"activity_type": "past"}})
 
@@ -475,7 +475,7 @@ def show_user_activities(usr_id):
 
 @accounts.route('/show_all_activities')
 def show_all_activities():
-	activities = mongo.db.Activities
+	activities = mongo.Activities
 
 	activities.update_many({"activity_type": "future", "date": { "$lte" : datetime.datetime.now()}},{ "$set": { "elapsed": 1 ,"activity_type": "past"}})
 
@@ -494,9 +494,9 @@ def change_activity_type():
 	req_data = request.get_json()
 	_id = req_data["_id"]
 	activity_type = req_data["activity_type"]
-	activities = mongo.db.Activities
-	orders = mongo.db.Orders
-	accounts = mongo.db.Accounts
+	activities = mongo.Activities
+	orders = mongo.Orders
+	accounts = mongo.Accounts
 	activity = activities.find_one({"_id": ObjectId(_id)})
 
 	if activity["ai_activity"] == 1:
@@ -560,9 +560,9 @@ def get_order_from_email():
 			no_of_shares = i["no_of_shares"]
 			amount = i["amount"]
 
-			accounts = mongo.db.Accounts
-			orders = mongo.db.Orders
-			activities = mongo.db.Activities
+			accounts = mongo.Accounts
+			orders = mongo.Orders
+			activities = mongo.Activities
 			
 			account = accounts.find_one({"email":email},{"_id": 1, "name": 1})
 			if account is None:
@@ -588,7 +588,7 @@ def get_order_from_email():
 
 @accounts.route('/get_all_account_names')
 def get_all_account_names():
-	accounts = mongo.db.Accounts
+	accounts = mongo.Accounts
 
 	all_accounts = accounts.find({},{"_id":1,"name":1})
 	all_accounts = list(all_accounts)
@@ -599,7 +599,7 @@ def get_all_account_names():
 #RENAME get_line_graph_data--- DONE
 @accounts.route('/get_line_graph_data')
 def get_line_graph_data():
-	orders = mongo.db.Orders
+	orders = mongo.Orders
 	order = orders.find({"stage" : 0},{"creation_date": 1, "cost_of_share": 1, "no_of_shares": 1})
 	order = list(order)
 	final = []
@@ -614,8 +614,8 @@ def get_line_graph_data():
 
 @accounts.route('/top_accounts')
 def top_accounts():
-	accounts = mongo.db.Accounts
-	orders = mongo.db.Orders
+	accounts = mongo.Accounts
+	orders = mongo.Orders
 	
 	order = orders.aggregate([{"$match": {"stage": 0}},{"$group":{"_id": "$account_id" ,"count": {"$sum" : "$no_of_shares"},"acc_score": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
 	order = list(order)
@@ -631,8 +631,8 @@ def top_accounts():
 #RENAME get_pie_chart_data--- DONE
 @accounts.route('/get_pie_chart_data')
 def get_pie_chart_data():
-	accounts = mongo.db.Accounts
-	orders = mongo.db.Orders
+	accounts = mongo.Accounts
+	orders = mongo.Orders
 	order = orders.find({},{"stage":1, "cost_of_share":1, "no_of_shares":1})
 	order = list(order)
 
@@ -642,9 +642,9 @@ def get_pie_chart_data():
 
 @accounts.route('/convert_finalized_orders')
 def convert_finalized_orders():
-	accounts = mongo.db.Accounts
-	orders = mongo.db.Orders
-	activities = mongo.db.Activities
+	accounts = mongo.Accounts
+	orders = mongo.Orders
+	activities = mongo.Activities
 
 	finalized_orders = orders.find({"stage": 2}) 
 	finalized_orders = list(finalized_orders)
@@ -680,9 +680,9 @@ def convert_finalized_orders():
 
 @accounts.route('/delete_activity/<activity_id>')
 def delete_activity(activity_id):
-	activities = mongo.db.Activities
-	orders = mongo.db.Orders
-	accounts = mongo.db.accounts
+	activities = mongo.Activities
+	orders = mongo.Orders
+	accounts = mongo.accounts
 
 	activity = activities.find_one({"_id": ObjectId(activity_id)})
 	if activity["ai_activity"] == 0:
@@ -701,8 +701,8 @@ def delete_activity(activity_id):
 #RENAME TO get_account_turnover--- DONE
 @accounts.route('get_account_turnover/<usr_id>')
 def get_account_turnover(usr_id):
-	accounts = mongo.db.Accounts
-	orders = mongo.db.Orders
+	accounts = mongo.Accounts
+	orders = mongo.Orders
 	order = orders.aggregate([{"$match": {"stage": 0, "account_id": usr_id}},{"$group":{"_id": "$account_id",\
 	"turnover": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
 	order = list(order)

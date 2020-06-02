@@ -6,5 +6,5 @@ main = Blueprint('main',__name__)
 
 @main.route('/')
 def index():
-    user_collection = mongo.db.leads
+    user_collection = mongo.leads
     user_collection.insert({})

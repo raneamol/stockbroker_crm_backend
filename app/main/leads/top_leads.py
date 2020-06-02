@@ -37,7 +37,7 @@ name = os.path.join(basedir, 'data/names.csv')
 @leads.route('/top_leads')
 def leads_top():
 
-    leads = mongo.db.Leads
+    leads = mongo.Leads
     
     lead_names = leads.find({},{"name":1,"_id": 1})
     lead_names = list(lead_names)
@@ -83,7 +83,7 @@ def leads_top():
 For inserting ml values to leads collectiton
 @leads.route("/add_to_leads")
 def add_to_leads():
-    leads = mongo.db.Leads
+    leads = mongo.Leads
     lead = leads.find({})
     lead = list(lead)
     #values = some json

@@ -4,7 +4,6 @@ import json
 
 from bson.objectid import ObjectId
 
-
 import datetime
 
 from ...extensions import mongo
@@ -23,7 +22,7 @@ def myconverter(o):
 #RENAME TO show_all_leads--- DONE
 @leads.route('/show_all_leads')
 def show_all_leads():
-	leads = mongo.db.Leads
+	leads = mongo.Leads
 	leads_view = leads.find({}, {"_id" : 1, "name" : 1, "job_type" : 1, "company" : 1, "city" : 1, "email" : 1, "phone_number" : 1})
 	#dumps converts cursor to string json
 	leads_view = list(leads_view)
@@ -33,7 +32,7 @@ def show_all_leads():
 
 @leads.route('/display_lead/<usr_id>')
 def display_lead(usr_id):
-	leads = mongo.db.Leads
+	leads = mongo.Leads
 	lead = leads.find({"_id" : ObjectId(usr_id)}, {"ml_fields": 0})
 	lead = list(lead)
 	lead = json.dumps(lead[0],default = myconverter)
@@ -65,7 +64,7 @@ def edit_lead():
 	state = req_data["state"]
 	status = req_data["status"]
 
-	leads = mongo.db.Leads
+	leads = mongo.Leads
 	lead = leads.find({"_id": usr_id})
 
 	new_values = {"$set":{
@@ -117,7 +116,7 @@ def create_lead():
 	ml_unemployed = req_data["ml_unemployed"]
 	ml_willRevert = req_data["ml_willRevert"]
 
-	leads = mongo.db.Leads
+	leads = mongo.Leads
 
 	values = {
 	"city": city, 
@@ -170,10 +169,10 @@ def convert_lead_to_accounts():
 	last_contact = req_data["last_contact"]
 	last_contact = datetime.datetime.strptime(last_contact, '%Y-%m-%dT%H:%M:%S.%fZ')
 
-	leads = mongo.db.Leads
-	accounts = mongo.db.Accounts
+	leads = mongo.Leads
+	accounts = mongo.Accounts
 
-	activities = mongo.db.Activities
+	activities = mongo.Activities
 
 	values = {
 	"contact_comm_type" : contact_comm_type,
@@ -210,7 +209,7 @@ def convert_lead_to_accounts():
 
 @leads.route('/get_all_lead_names')
 def get_all_lead_names():
-	leads = mongo.db.Leads
+	leads = mongo.Leads
 
 	all_leads = leads.find({},{"_id":1,"name":1})
 	all_leads = list(all_leads)
