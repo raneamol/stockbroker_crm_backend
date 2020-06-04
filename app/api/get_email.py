@@ -72,9 +72,10 @@ def get_email():
                     try:
                         date1 = dt.datetime.strptime(date, '%a, %d %b %Y %H:%M:%S %z')
                     except:
-                        pass
-                    if (d<date1):
-                        
+                        #if date is in different format, ignore the mail
+                        date1 = d
+                    if (d<date1):      
+
                         sender = raw['From']
                         
                         subject = decode_header(raw['subject'])[0][0]

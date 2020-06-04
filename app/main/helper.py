@@ -14,6 +14,8 @@ import en_core_web_sm
 from pprint import pprint
 import os
 
+from ..extensions import mongo
+
 basedir=os.path.dirname(os.path.abspath(__file__))
 nlp_model = os.path.join(basedir, 'data/nlp_model')
 
@@ -118,20 +120,25 @@ def get_cost_from_text(s1):
 def fetch_order():
     order_list=[]
     inbox = get_email()
+    accounts = mongo.Accounts
+    emails = accounts.find({},{"_id":0, "email" : 1})
+    emails = list(emails)
+    emails = [ i["email"] for i in emails ] 
     for i in inbox:
         sent_list = split_into_sentence(i["Body"])
-        for j in sent_list:
-            final =check_nlp(j)
-            if final == 0:
-                continue
-            else:
-                break
-        
-        if final != 0:
-            email_id = (i["From"])
-            final["From"] = email_id
+        if i["From"] in emails:
+            for j in sent_list:
+                final =check_nlp(j)
+                if final == 0:
+                    continue
+                else:
+                    break
+            
+            if final != 0:
+                email_id = (i["From"])
+                final["From"] = email_id
 
-            order_list.append(final)
+                order_list.append(final)
     
     return order_list
 

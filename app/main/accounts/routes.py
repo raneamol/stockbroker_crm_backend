@@ -699,6 +699,7 @@ def delete_activity(activity_id):
 	return "activity deleted"
 
 #RENAME TO get_account_turnover--- DONE
+#function error
 @accounts.route('get_account_turnover/<usr_id>')
 def get_account_turnover(usr_id):
 	accounts = mongo.Accounts
