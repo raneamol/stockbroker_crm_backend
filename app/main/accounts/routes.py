@@ -625,6 +625,7 @@ def top_accounts():
 		account = accounts.find_one({"_id": ObjectId(i["_id"])})
 		i["name"] = account["name"]
 	
+	order = order[:3]
 	order = json.dumps(order, default = myconverter)
 	return order
 
@@ -646,35 +647,35 @@ def convert_finalized_orders():
 	orders = mongo.Orders
 	activities = mongo.Activities
 
-	finalized_orders = orders.find({"stage": 2}) 
+	finalized_orders = orders.find({"stage": 2}) #1
 	finalized_orders = list(finalized_orders)
-	
+
 	for i in finalized_orders:
 		#get realtime stock price
-		current_price = get_stock_price(i["company"])
+		#current_price = get_stock_price(i["company"])
 		cost_of_share = get_cost_from_text(i["cost_of_share"])
-		
+		current_price = 222222220
 		#check order cost with realtime stock price
 		if cost_of_share == 'undefined':
 			cost_of_share = current_price
 		action = i["trans_type"].lower()
-		account = accounts.find_one({"_id":ObjectId(i["account_id"])})
+		account = accounts.find_one({"_id":ObjectId(i["account_id"])})	#count(finalized orders)
 
 		if (action == 'buy' and cost_of_share >= current_price) or (action == 'sell' and cost_of_share <= current_price):
-			orders.update({"_id": i["_id"]},{"$set":{"stage": 3}})
+			orders.update({"_id": i["_id"]},{"$set":{"stage": 3}})#count(finalized orders)
 			title = "Transact order for {}ing {} {} shares.".format(i["trans_type"],i["no_of_shares"],i["company"])
 			body = "Transact order of {} to {} {} shares of {}. Price:{}".format(account["name"],i["trans_type"],i["no_of_shares"],\
 			i["company"],cost_of_share)
 			date = datetime.datetime.now() + timedelta(hours = 2)
 
 			activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "user_id": i["account_id"],\
-			"elapsed":0, "ai_activity": 1})
-			activity = activities.find({}).sort("_id",-1).limit(1)
-			orders.update({"_id": i["_id"]},{"$set" : {"activity_id": str(activity[0]["_id"])}})
+			"elapsed":0, "ai_activity": 1})	#count(finalized orders)
+			activity = activities.find({}).sort("_id",-1).limit(1)	#count(finalized orders)
+			orders.update({"_id": i["_id"]},{"$set" : {"activity_id": str(activity[0]["_id"])}})	#count(finalized orders)
 			
-		max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
-		accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
-
+		max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)	#count(finalized orders)
+		accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})	#count(finalized orders)
+	
 	return "Success"
 
 
@@ -707,8 +708,11 @@ def get_account_turnover(usr_id):
 	order = orders.aggregate([{"$match": {"stage": 0, "account_id": usr_id}},{"$group":{"_id": "$account_id",\
 	"turnover": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
 	order = list(order)
-	order[0].pop('_id',None)
-
+	print(order)
+	try:
+		order[0].pop('_id',None)
+	except:
+		order = [{"turnover":0}]
 	order = json.dumps(order[0], default = myconverter)
 	return order
 	
