@@ -30,7 +30,7 @@ def get_email():
 
     #Initially put some date in the following format, inside gmail_time.txt---(Fri, 10 Apr 2020 08:33:13 -0700)
     a = dt.datetime.strptime(t, '%a, %d %b %Y %H:%M:%S %z')
-
+    print(a)
     #convert datetime to iso
     date_time.replace(tzinfo=timezone.utc)
     date_time = date_time.replace(tzinfo=timezone.utc).isoformat()
@@ -68,9 +68,11 @@ def get_email():
 
                     raw =  email.message_from_bytes(response_part[1])
                     date = raw['Date']
+                    print(date)
                     d = dt.datetime.strptime(t, '%a, %d %b %Y %H:%M:%S %z')
                     try:
                         date1 = dt.datetime.strptime(date, '%a, %d %b %Y %H:%M:%S %z')
+                        print(date1)
                     except:
                         #if date is in different format, ignore the mail
                         date1 = d

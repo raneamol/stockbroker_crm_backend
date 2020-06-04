@@ -133,7 +133,7 @@ def fetch_order():
                     continue
                 else:
                     break
-            
+            print(final)
             if final != 0:
                 email_id = (i["From"])
                 final["From"] = email_id
