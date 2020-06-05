@@ -67,15 +67,19 @@ def check_nlp(sent):
         for value in tokens_without_sw:
             if value[0]=='buy' or value[0]=='purchase':
                 action = 'buy'
+                print(action)
 
             elif value[0]=='sell':
                 action = value[0]
+                print(action)
 
             elif value[1]=='JJ':
                 company = value[0]
+                print(company)
 
             elif value[1]=='NN':
                 company = value[0]
+                print(company)
 
         #spacy part to get amount and numvber of shares
         nlp = spacy.load(nlp_model)
@@ -86,6 +90,7 @@ def check_nlp(sent):
         for X in doc1.ents:
             if X.label_=='CARDINAL':
                 no_of_shares = X.text
+                print(no_of_shares)
         for X in doc.ents:
             if X.label_=='MONEY':
                 amount = X.text
@@ -120,13 +125,18 @@ def get_cost_from_text(s1):
 def fetch_order():
     order_list=[]
     inbox = get_email()
+
     accounts = mongo.Accounts
     emails = accounts.find({},{"_id":0, "email" : 1})
     emails = list(emails)
-    emails = [ i["email"] for i in emails ] 
+    emails = [ i["email"] for i in emails ]
+    emails = set(emails)
+
     for i in inbox:
         sent_list = split_into_sentence(i["Body"])
-        if i["From"] in emails:
+        n_email = i["From"].split('<')[1]
+        n_email = n_email.split('>')[0]
+        if n_email in emails:
             for j in sent_list:
                 final =check_nlp(j)
                 if final == 0:
