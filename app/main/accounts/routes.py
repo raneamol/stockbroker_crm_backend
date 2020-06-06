@@ -338,11 +338,18 @@ def show_all_orders():
 	accounts = mongo.Accounts
 
 	all_orders = orders.find()
-
+	all_accounts = accounts.find({},{"_id":1,"name":1})
 	all_orders = list(all_orders)
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	all_accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(all_accounts_id)
+
 	for i in all_orders:
-		account_name = accounts.find_one({"_id":ObjectId(i["account_id"])},{"name" :1})
-		i["name"] = account_name["name"]
+		if i["account_id"] in all_accounts_id:
+			abc = i["account_id"]		
+			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
+			i["name"] = account["name"]	
 
 	all_orders = json.dumps(all_orders, default =myconverter)
 
