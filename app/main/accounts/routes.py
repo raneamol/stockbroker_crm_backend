@@ -305,10 +305,8 @@ for cost """+str(order["cost_of_share"])+""" is finalized"""
 		orders.update({"_id": _id},{"$set" : {"activity_id": str(activity[0]["_id"])}})
 	
 	elif stage == 0:
-		try:
-			current_price = get_stock_price(order["company"])
-		except:
-			current_price = 0.0
+		current_price = get_stock_price(order["company"])
+		
 		orders.update({"_id":_id},{"$set": {"stage" : stage, "cost_of_share": current_price}})
 		activities.update({"_id": ObjectId(order["activity_id"])},{"$set": {"activity_type": "past"}})
 		email_id = account["email"]
