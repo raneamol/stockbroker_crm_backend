@@ -98,7 +98,7 @@ def edit_account():
 	x = accounts.update({"_id": usr_id},new_values)
 	return "Document has been updated"
 
-
+#Maybe change structure...?
 #RENAME complete_account_orders--- DONE
 @accounts.route('/complete_account_orders',methods = ["POST"])
 def complete_account_orders():
@@ -108,6 +108,13 @@ def complete_account_orders():
 
 	orders = mongo.Orders
 	accounts = mongo.Accounts
+	all_accounts = accounts.find({})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	all_accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(all_accounts_id)
+
+
 
 	account_orders = orders.find({'account_id': usr_id})
 	
@@ -119,12 +126,16 @@ def complete_account_orders():
 		
 		activities = mongo.Activities
 		activities.update({"_id":ObjectId(i["activity_id"]) },{ "$set": {"activity_type": "past"}})
+
+		if i["account_id"] in all_accounts_id:
+			abc = i["account_id"]		
+			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None)
 		try:
 			current_price = get_stock_price(i["company"])
 		except:
 			current_price = 0.0
+		
 		orders.update({"_id":i["_id"]},{"$set": {"cost_of_share": current_price}})
-		account = accounts.find_one({"_id": ObjectId(i["account_id"])})
 
 		message = """\
 Subject: Hi """+str(account["name"])+"""
@@ -140,38 +151,48 @@ for cost Rs."""+str(current_price)+""" has been transacted."""
 	
 	return "All transacted orders of account have been archived"
 
-
+#Change structure--DONE partially
 @accounts.route('/complete_all_orders')
 def complete_all_orders():	
 	accounts = mongo.Accounts
 	orders = mongo.Orders
 	activities = mongo.Activities	
-	account_of_orders= orders.find({"stage":3},{"account_id": 1})
-	account_ids = list(account_of_orders)
-	
+	account_of_orders= orders.find({"stage":3})
+	all_orders = list(account_of_orders)
+
+	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	all_accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(all_accounts_id)
+
 	orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
-	for i in account_ids:
-		max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
-		accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
-		account = accounts.find_one({"_id": ObjectId(i["account_id"])})
+	
+
+
+	for i in all_orders:
 		
-		order = orders.find_one({"_id": i["_id"]})
-		
+		if i["account_id"] in all_accounts_id:
+			abc = i["account_id"]		
+			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
+			
 		try:
-			current_price = get_stock_price(order["company"])
+			current_price = get_stock_price(i["company"])
 		except:
 			current_price = 0.0
-		
 		orders.update({"_id":i["_id"]},{"$set": {"cost_of_share": current_price}})
-		activities.update({"_id": ObjectId(order["activity_id"])},{"$set": {"activity_type": "past"}})
+		activities.update({"_id": ObjectId(i["activity_id"])},{"$set": {"activity_type": "past"}})
 
+		max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
+		accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 		message = """\
 Subject: Hi """+str(account["name"])+"""
 Hi """+str(account["name"])+""",
-Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+""" shares of """+str(order["company"])+"""\
+Your order to """+str(i["trans_type"]) +""" """+str(i["no_of_shares"])+""" shares of """+str(i["company"])+"""\
 for cost Rs."""+str(current_price)+""" has been transacted."""
 
 		send_email(account["email"],message)
+		
 
 	return "All transacted orders have been archived"
 
@@ -547,10 +568,24 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 	return "Activity updated"
 
 
+#change structure--Partially dodne, but good enough
 @accounts.route('/get_order_from_email')
 def get_order_from_email():
 	order_list = fetch_order()
 	print(order_list)
+
+	accounts = mongo.Accounts
+	orders = mongo.Orders
+	activities = mongo.Activities
+
+	all_accounts = accounts.find({},{"_id": 1, "name": 1, "email": 1})
+
+	all_accounts = list(all_accounts)
+	#take all emails
+	accounts_email = [i['email'] for i in all_accounts]
+	#convert account id to set
+	accounts_email = set(accounts_email)
+
 	if order_list == []:
 		return "No new order"
 	else:
@@ -565,11 +600,17 @@ def get_order_from_email():
 			no_of_shares = i["no_of_shares"]
 			amount = i["amount"]
 
-			accounts = mongo.Accounts
-			orders = mongo.Orders
-			activities = mongo.Activities
+			#accounts = mongo.Accounts
+			#orders = mongo.Orders
+			#activities = mongo.Activities
 			
-			account = accounts.find_one({"email":email},{"_id": 1, "name": 1})
+			#account = accounts.find_one({"email":email},{"_id": 1, "name": 1})
+			
+
+			if email in accounts_email:
+				abc = email		
+				account = next((i for i in all_accounts if i["email"] == abc), None)
+
 			if account is None:
 				continue
 			if amount == '':
@@ -617,6 +658,7 @@ def get_line_graph_data():
 	return order
 
 
+#change structure----DONE
 @accounts.route('/top_accounts')
 def top_accounts():
 	accounts = mongo.Accounts
@@ -624,15 +666,25 @@ def top_accounts():
 	
 	order = orders.aggregate([{"$match": {"stage": 0}},{"$group":{"_id": "$account_id" ,"count": {"$sum" : "$no_of_shares"},"acc_score": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
 	order = list(order)
+	
 	order = sorted(order, key = lambda k:k['acc_score'], reverse = True)
+	
+	all_accounts = accounts.find({},{"_id":1,"name":1})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	all_accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(all_accounts_id)
 
 	for i in order:
-		account = accounts.find_one({"_id": ObjectId(i["_id"])})
-		i["name"] = account["name"]
+		if i["_id"] in all_accounts_id:
+			abc = i["_id"]		
+			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
+			i["name"] = account["name"]
 	
 	order = order[:3]
 	order = json.dumps(order, default = myconverter)
 	return order
+
 
 #RENAME get_pie_chart_data--- DONE
 @accounts.route('/get_pie_chart_data')
@@ -645,7 +697,7 @@ def get_pie_chart_data():
 	order = json.dumps(order, default = myconverter)
 	return order
 
-
+#Change structure
 @accounts.route('/convert_finalized_orders')
 def convert_finalized_orders():
 	accounts = mongo.Accounts
@@ -656,10 +708,9 @@ def convert_finalized_orders():
 	finalized_orders = list(finalized_orders)
 
 	for i in finalized_orders:
-		#get realtime stock price
-		#current_price = get_stock_price(i["company"])
+		#get realtime stock price	Note: this api doesnt work on hreoku
+		current_price = get_stock_price(i["company"])
 		cost_of_share = get_cost_from_text(i["cost_of_share"])
-		current_price = 222222220
 		#check order cost with realtime stock price
 		if cost_of_share == 'undefined':
 			cost_of_share = current_price
