@@ -12,9 +12,11 @@ from app.main.accounts import accounts
 
 from app.main.leads import leads
 
+from flask_cors import CORS
+
 def create_app():
     app = Flask(__name__)
-    
+    CORS(app)    
     
     #register blueprints
     app.register_blueprint(main,url_prefix='/')

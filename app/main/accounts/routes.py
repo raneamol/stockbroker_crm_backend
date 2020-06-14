@@ -40,10 +40,21 @@ def show_all_accounts():
 @accounts.route('/display_account/<usr_id>')
 def display_account(usr_id):
 	accounts = mongo.Accounts
+	orders = mongo.Orders
+	
+	max_stage_order = orders.find({"account_id":usr_id}).sort("stage",-1).limit(1)
+	#accounts.update({"_id": ObjectId(usr_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+	order_count = orders.count_documents({"account_id":usr_id})
+	if(order_count==0):
+		accounts.update({"_id": ObjectId(usr_id)}, {"$set": {"latest_order_stage": 0}})
+	else:
+		accounts.update({"_id": ObjectId(usr_id)}, {"$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+	
 	account = accounts.find({"_id" : ObjectId(usr_id)})
 	account = list(account)
-	orders = mongo.Orders
 	account = json.dumps(account[0], default=myconverter)
+
+
 
 	return account
 
@@ -98,7 +109,7 @@ def edit_account():
 	x = accounts.update({"_id": usr_id},new_values)
 	return "Document has been updated"
 
-#Maybe change structure...?
+#Maybe change structure...?---DONE partially
 #RENAME complete_account_orders--- DONE
 @accounts.route('/complete_account_orders',methods = ["POST"])
 def complete_account_orders():
@@ -145,20 +156,29 @@ for cost Rs."""+str(current_price)+""" has been transacted."""
 
 		send_email(account["email"],message)
 
-	max_stage_order = orders.find({"account_id":usr_id}).sort("stage",-1).limit(1)
+	#max_stage_order = orders.find({"account_id":usr_id}).sort("stage",-1).limit(1)
 
-	accounts.update({"_id": ObjectId(usr_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+	#accounts.update({"_id": ObjectId(usr_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 	
 	return "All transacted orders of account have been archived"
 
-#Change structure--DONE partially
+
+#Change structure--DONE ALmost cocmpletely
 @accounts.route('/complete_all_orders')
 def complete_all_orders():	
 	accounts = mongo.Accounts
 	orders = mongo.Orders
 	activities = mongo.Activities	
-	account_of_orders= orders.find({"stage":3})
-	all_orders = list(account_of_orders)
+	
+	all_orders= orders.find({"stage":3})
+	all_orders = list(all_orders)
+	activity_id = [i['activity_id'] for i in all_orders]
+	activity_id = list(map(ObjectId,activity_id))
+	#order_id = [i['_id'] for i in all_orders]
+	#order_id = list(order_id)
+	
+	#orders.update({"_id":{"$in": order_id}},{"$set": {"cost_of_share": current_price}}, multi = True)
+	
 
 	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
 	all_accounts = list(all_accounts)
@@ -168,7 +188,7 @@ def complete_all_orders():
 
 	orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
 	
-
+	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
 
 	for i in all_orders:
 		
@@ -181,10 +201,10 @@ def complete_all_orders():
 		except:
 			current_price = 0.0
 		orders.update({"_id":i["_id"]},{"$set": {"cost_of_share": current_price}})
-		activities.update({"_id": ObjectId(i["activity_id"])},{"$set": {"activity_type": "past"}})
+		#activities.update({"_id": ObjectId(i["activity_id"])},{"$set": {"activity_type": "past"}})
 
-		max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
-		accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+		#max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
+		#accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 		message = """\
 Subject: Hi """+str(account["name"])+"""
 Hi """+str(account["name"])+""",
@@ -342,9 +362,9 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 	else:
 		print("Error in updating")	
 
-	max_stage_order = orders.find({"account_id":order["account_id"]}).sort("stage",-1).limit(1)
+	#max_stage_order = orders.find({"account_id":order["account_id"]}).sort("stage",-1).limit(1)
 
-	accounts.update({"_id": ObjectId(order["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+	#accounts.update({"_id": ObjectId(order["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 
 	return "Order has been changed to stage {}".format(stage)
 
@@ -443,12 +463,12 @@ def delete_order(order_id):
 	
 	orders.delete_one({"_id" : ObjectId(order_id)})
 	order_count = orders.count_documents({"account_id":account_id})
-	max_stage_order = orders.find({"account_id":account_id}).sort("stage",-1).limit(1)
+	#max_stage_order = orders.find({"account_id":account_id}).sort("stage",-1).limit(1)
 	
-	if(order_count==0):
-		accounts.update({"_id": ObjectId(account_id)}, {"$set": {"latest_order_stage": 0}})
-	else:
-		accounts.update({"_id": ObjectId(account_id)}, {"$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+	#if(order_count==0):
+	#	accounts.update({"_id": ObjectId(account_id)}, {"$set": {"latest_order_stage": 0}})
+	#else:
+	#	accounts.update({"_id": ObjectId(account_id)}, {"$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 
 	return "Order Deleted"
 
@@ -558,9 +578,9 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 			
 			send_email(account["email"] ,message)
 		
-		max_stage_order = orders.find({"account_id": order["account_id"]}).sort("stage",-1).limit(1)
+		#max_stage_order = orders.find({"account_id": order["account_id"]}).sort("stage",-1).limit(1)
 
-		accounts.update({"_id": ObjectId(order["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+		#accounts.update({"_id": ObjectId(order["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 	
 	else:
 		activities.update({"_id": ObjectId(_id)},{"$set":{"activity_type":activity_type}})
@@ -621,9 +641,9 @@ def get_order_from_email():
 			print(account["name"])
 			body = "Finalize order of {} to {} {} shares of {}. Price:{}".format(account["name"],action,no_of_shares,company.upper(),price)
 			date = datetime.datetime.now() + timedelta(hours = 2)
-			max_stage_order = orders.find({"account_id":str(account["_id"])}).sort("stage",-1).limit(1)
+			#max_stage_order = orders.find({"account_id":str(account["_id"])}).sort("stage",-1).limit(1)
 
-			accounts.update({"_id": account["_id"]}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+			#accounts.update({"_id": account["_id"]}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 			activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "user_id": str(account["_id"]), "elapsed":0, "ai_activity": 1})
 			activity = activities.find({}).sort("_id",-1).limit(1)
 			orders.insert({ "company": company, "no_of_shares": no_of_shares, "cost_of_share": price, "stage": 1, "account_id":str(account["_id"]), "trans_type": action, "activity_id": str(activity[0]["_id"]), "creation_date":datetime.datetime.now()})
@@ -729,8 +749,8 @@ def convert_finalized_orders():
 			activity = activities.find({}).sort("_id",-1).limit(1)	#count(finalized orders)
 			orders.update({"_id": i["_id"]},{"$set" : {"activity_id": str(activity[0]["_id"])}})	#count(finalized orders)
 			
-		max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)	#count(finalized orders)
-		accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})	#count(finalized orders)
+		#max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)	#count(finalized orders)
+		#accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})	#count(finalized orders)
 	
 	return "Success"
 
@@ -750,9 +770,9 @@ def delete_activity(activity_id):
 		account_id = order["account_id"]
 		orders.delete_one({"activity_id": activity_id})
 		activities.delete_one({"_id": ObjectId(activity_id)})
-		max_stage_order = orders.find({"account_id":account_id}).sort("stage",-1).limit(1)
+		#max_stage_order = orders.find({"account_id":account_id}).sort("stage",-1).limit(1)
 
-		accounts.update({"_id": ObjectId(account_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+		#accounts.update({"_id": ObjectId(account_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 	return "activity deleted"
 
 #RENAME TO get_account_turnover--- DONE
