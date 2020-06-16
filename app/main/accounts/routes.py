@@ -109,76 +109,93 @@ def edit_account():
 	x = accounts.update({"_id": usr_id},new_values)
 	return "Document has been updated"
 
-#Maybe change structure...?---DONE partially
+#Change structure...?---DONE 
 #RENAME complete_account_orders--- DONE
 @accounts.route('/complete_account_orders',methods = ["POST"])
 def complete_account_orders():
 	req_data = request.get_json()
 	usr_id = req_data["account_id"]
+	company = req_data["company"]
 	
-
 	orders = mongo.Orders
 	accounts = mongo.Accounts
-	all_accounts = accounts.find({})
+	activities = mongo.Activities
+
+	all_orders= orders.find({"stage":3, "account_id": usr_id})
+	all_orders = list(all_orders)
+	activity_id = [i['activity_id'] for i in all_orders]
+	activity_id = list(map(ObjectId,activity_id))
+
+
+	account = accounts.find({"_id": ObjectId(usr_id)})
+	account = list(account)
+
+
+	orders_company = [i["company"].lower() for i in all_orders]
+	orders_company = set(orders_company)
+	company_keys = set(company)
+	company_values = set(company.values())
+	companies = orders_company.intersection(company_keys)
+
+
+	#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
+	for i in companies:
+		orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
+
+	orders.update_many({"stage" : 3, 'account_id' : usr_id},{"$set": {"stage" : 0}})
+	
+	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
+
+	all_orders = json.dumps(all_orders, default =myconverter)
+	return all_orders
+
+
+#Change structure...?---DONE 
+@accounts.route('/complete_all_orders', methods = ["POST"])
+def complete_all_orders():	
+	accounts = mongo.Accounts
+	orders = mongo.Orders
+	activities = mongo.Activities
+	req_data = request.get_json()
+	company = req_data["company"]
+
+
+	all_orders= orders.find({"stage":3})
+	all_orders = list(all_orders)
+	activity_id = [i['activity_id'] for i in all_orders]
+	activity_id = list(map(ObjectId,activity_id))
+	
+	#add this to send email api
+	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
 	all_accounts = list(all_accounts)
 	accounts_id = [i['_id'] for i in all_accounts]
 	all_accounts_id = list(map(str,accounts_id))
 	all_accounts_id = set(all_accounts_id)
 
 
+	orders_company = [i["company"].lower() for i in all_orders]
+	orders_company = set(orders_company)
+	company_keys = set(company)
+	company_values = set(company.values())
+	companies = orders_company.intersection(company_keys)
 
-	account_orders = orders.find({'account_id': usr_id})
+	#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
+	for i in companies:
+		orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
+
+	orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
 	
-	order = orders.find({"stage":3, "account_id": usr_id})
-	order = list(order)
-	orders.update_many({"stage" : 3, 'account_id' : usr_id},{"$set": {"stage" : 0}})
+	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
 
-	for i in order:
-		
-		activities = mongo.Activities
-		activities.update({"_id":ObjectId(i["activity_id"]) },{ "$set": {"activity_type": "past"}})
+	all_orders = json.dumps(all_orders, default =myconverter)
 
-		if i["account_id"] in all_accounts_id:
-			abc = i["account_id"]		
-			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None)
-		try:
-			current_price = get_stock_price(i["company"])
-		except:
-			current_price = 0.0
-		
-		orders.update({"_id":i["_id"]},{"$set": {"cost_of_share": current_price}})
+	return all_orders
 
-		message = """\
-Subject: Hi """+str(account["name"])+"""
-Hi """+str(account["name"])+""",
-Your order to """+str(i["trans_type"]) +""" """+str(i["no_of_shares"])+""" shares of """+str(i["company"])+"""\
-for cost Rs."""+str(current_price)+""" has been transacted."""
 
-		send_email(account["email"],message)
-
-	#max_stage_order = orders.find({"account_id":usr_id}).sort("stage",-1).limit(1)
-
-	#accounts.update({"_id": ObjectId(usr_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+@accounts.route('/send_email_post_transaction/<all_orders>')
+def send_email_post_transaction(all_orders):
 	
-	return "All transacted orders of account have been archived"
-
-
-#Change structure--DONE ALmost cocmpletely
-@accounts.route('/complete_all_orders')
-def complete_all_orders():	
 	accounts = mongo.Accounts
-	orders = mongo.Orders
-	activities = mongo.Activities	
-	
-	all_orders= orders.find({"stage":3})
-	all_orders = list(all_orders)
-	activity_id = [i['activity_id'] for i in all_orders]
-	activity_id = list(map(ObjectId,activity_id))
-	#order_id = [i['_id'] for i in all_orders]
-	#order_id = list(order_id)
-	
-	#orders.update({"_id":{"$in": order_id}},{"$set": {"cost_of_share": current_price}}, multi = True)
-	
 
 	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
 	all_accounts = list(all_accounts)
@@ -186,35 +203,23 @@ def complete_all_orders():
 	all_accounts_id = list(map(str,accounts_id))
 	all_accounts_id = set(all_accounts_id)
 
-	orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
-	
-	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
-
 	for i in all_orders:
 		
 		if i["account_id"] in all_accounts_id:
 			abc = i["account_id"]		
-			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
-			
-		try:
-			current_price = get_stock_price(i["company"])
-		except:
-			current_price = 0.0
-		orders.update({"_id":i["_id"]},{"$set": {"cost_of_share": current_price}})
-		#activities.update({"_id": ObjectId(i["activity_id"])},{"$set": {"activity_type": "past"}})
+			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None)
 
-		#max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
-		#accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 		message = """\
 Subject: Hi """+str(account["name"])+"""
 Hi """+str(account["name"])+""",
 Your order to """+str(i["trans_type"]) +""" """+str(i["no_of_shares"])+""" shares of """+str(i["company"])+"""\
-for cost Rs."""+str(current_price)+""" has been transacted."""
+for cost Rs."""+str(i["cost_of_share"])+""" has been transacted."""
 
 		send_email(account["email"],message)
-		
+	
+	return "Emails have been sent."
 
-	return "All transacted orders have been archived"
+
 
 
 @accounts.route('/create_account', methods = ["POST"])
@@ -306,19 +311,23 @@ def display_user_orders(usr_id):
 
 	return account_orders
 
-
+#Change structure 
 @accounts.route('/order_stage_change',methods = ["POST"])
 def order_stage_change():
 	req_data = request.get_json()
 	_id = req_data["_id"]
 	_id = ObjectId(_id)
 	stage = req_data["stage"]
+	company = req_data["company"]
 
 	orders = mongo.Orders
 	accounts = mongo.Accounts
-	order = orders.find_one({"_id":_id})
-	account = accounts.find_one({"_id":ObjectId(order["account_id"])})
 	activities = mongo.Activities
+
+	order = orders.find_one({"_id":_id})
+	order_company = order["company"].lower()
+	account = accounts.find_one({"_id":ObjectId(order["account_id"])})
+
 
 	if stage == 2:
 		activities.update({"_id": ObjectId(order["activity_id"])},{"$set": {"activity_type": "past"}})
@@ -346,9 +355,9 @@ for cost """+str(order["cost_of_share"])+""" is finalized"""
 		orders.update({"_id": _id},{"$set" : {"activity_id": str(activity[0]["_id"])}})
 	
 	elif stage == 0:
-		current_price = get_stock_price(order["company"])
+		#current_price = get_stock_price(order["company"])
 		
-		orders.update({"_id":_id},{"$set": {"stage" : stage, "cost_of_share": current_price}})
+		orders.update({"_id":_id},{"$set": {"stage" : stage, "cost_of_share": company[order_company]}})
 		activities.update({"_id": ObjectId(order["activity_id"])},{"$set": {"activity_type": "past"}})
 		email_id = account["email"]
 		message = """\
@@ -361,10 +370,6 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 	
 	else:
 		print("Error in updating")	
-
-	#max_stage_order = orders.find({"account_id":order["account_id"]}).sort("stage",-1).limit(1)
-
-	#accounts.update({"_id": ObjectId(order["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 
 	return "Order has been changed to stage {}".format(stage)
 
@@ -394,56 +399,6 @@ def show_all_orders():
 
 	return all_orders
 
-'''
-#RENAME check_share_price_and_update_order
-@accounts.route('/convert_and_get_orders')
-def convert_and_get_orders():
-	orders = mongo.Orders
-
-	accounts = mongo.Accounts
-
-	activities = mongo.Activities
-
-	all_orders = orders.find()
-
-	finalized_orders = orders.find({"stage": 2}) 
-	finalized_orders = list(finalized_orders)
-
-	for i in finalized_orders:
-		
-		current_price = get_stock_price(i["company"])
-		cost_of_share = get_cost_from_text(i["cost_of_share"])
-		if cost_of_share == 'undefined':
-			cost_of_share = current_price		
-		action = i["trans_type"].lower()
-		account = accounts.find_one({"_id":ObjectId(i["account_id"])})
-
-		if (action == 'buy' and cost_of_share >= current_price) or (action == 'sell' and cost_of_share <= current_price):
-			orders.update({"_id": i["_id"]},{"$set":{"stage": 3}})
-			title = "Transact order for {}ing {} {} shares.".format(i["trans_type"],i["no_of_shares"],i["company"])
-			body = "Transact order of {} to {} {} shares of {}. Price:{}".format(account["name"],i["trans_type"],i["no_of_shares"],\
-			i["company"],cost_of_share)
-			date = datetime.datetime.now() + timedelta(hours = 2)
-
-			activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "user_id": i["account_id"],\
-			"elapsed":0, "ai_activity": 1})
-			activity = activities.find({}).sort("_id",-1).limit(1)
-			orders.update({"_id": i["_id"]},{"$set" : {"activity_id": str(activity[0]["_id"])}})
-			
-		max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
-		accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
-
-	all_orders = list(all_orders)
-
-	for i in all_orders:
-		account_name = accounts.find_one({"_id":ObjectId(i["account_id"])},{"name" :1})
-		i["name"] = account_name["name"]
-
-	all_orders = json.dumps(all_orders, default =myconverter)
-
-	return all_orders
-'''
-
 
 @accounts.route("/delete_order/<order_id>")
 def delete_order(order_id):
@@ -463,13 +418,7 @@ def delete_order(order_id):
 	
 	orders.delete_one({"_id" : ObjectId(order_id)})
 	order_count = orders.count_documents({"account_id":account_id})
-	#max_stage_order = orders.find({"account_id":account_id}).sort("stage",-1).limit(1)
 	
-	#if(order_count==0):
-	#	accounts.update({"_id": ObjectId(account_id)}, {"$set": {"latest_order_stage": 0}})
-	#else:
-	#	accounts.update({"_id": ObjectId(account_id)}, {"$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
-
 	return "Order Deleted"
 
 
@@ -792,3 +741,57 @@ def get_account_turnover(usr_id):
 	order = json.dumps(order[0], default = myconverter)
 	return order
 	
+'''
+#Change structure--DONE ALmost cocmpletely
+@accounts.route('/complete_all_orders')
+def complete_all_orders():	
+	accounts = mongo.Accounts
+	orders = mongo.Orders
+	activities = mongo.Activities	
+	
+	all_orders= orders.find({"stage":3})
+	all_orders = list(all_orders)
+	activity_id = [i['activity_id'] for i in all_orders]
+	activity_id = list(map(ObjectId,activity_id))
+	#order_id = [i['_id'] for i in all_orders]
+	#order_id = list(order_id)
+	
+	#orders.update({"_id":{"$in": order_id}},{"$set": {"cost_of_share": current_price}}, multi = True)
+	
+
+	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	all_accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(all_accounts_id)
+
+	orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
+	
+	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
+
+	for i in all_orders:
+		
+		if i["account_id"] in all_accounts_id:
+			abc = i["account_id"]		
+			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
+			
+		try:
+			current_price = get_stock_price(i["company"])
+		except:
+			current_price = 0.0
+		orders.update({"_id":i["_id"]},{"$set": {"cost_of_share": current_price}})
+		#activities.update({"_id": ObjectId(i["activity_id"])},{"$set": {"activity_type": "past"}})
+
+		#max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
+		#accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+		message = """\
+Subject: Hi """+str(account["name"])+"""
+Hi """+str(account["name"])+""",
+Your order to """+str(i["trans_type"]) +""" """+str(i["no_of_shares"])+""" shares of """+str(i["company"])+"""\
+for cost Rs."""+str(current_price)+""" has been transacted."""
+
+		send_email(account["email"],message)
+		
+
+	return "All transacted orders have been archived"
+'''
