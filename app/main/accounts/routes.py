@@ -150,7 +150,7 @@ def complete_account_orders():
 	return all_orders
 
 
-#Change structure...?---DONE 
+#Change structure... add commpany to post data?---DONE 
 @accounts.route('/complete_all_orders', methods = ["POST"])
 def complete_all_orders():	
 	accounts = mongo.Accounts
@@ -166,11 +166,11 @@ def complete_all_orders():
 	activity_id = list(map(ObjectId,activity_id))
 	
 	#add this to send email api
-	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
-	all_accounts = list(all_accounts)
-	accounts_id = [i['_id'] for i in all_accounts]
-	all_accounts_id = list(map(str,accounts_id))
-	all_accounts_id = set(all_accounts_id)
+	#all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
+	#all_accounts = list(all_accounts)
+	#accounts_id = [i['_id'] for i in all_accounts]
+	#all_accounts_id = list(map(str,accounts_id))
+	#all_accounts_id = set(all_accounts_id)
 
 
 	orders_company = [i["company"].lower() for i in all_orders]
@@ -192,11 +192,12 @@ def complete_all_orders():
 	return all_orders
 
 
-@accounts.route('/send_email_post_transaction/<all_orders>')
-def send_email_post_transaction(all_orders):
+@accounts.route('/send_email_after_transaction', methods = ["POST"])
+def send_email_after_transaction():
 	
 	accounts = mongo.Accounts
-
+	req_data = request.get_json()
+	all_orders = req_data["all_orders"]
 	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
 	all_accounts = list(all_accounts)
 	accounts_id = [i['_id'] for i in all_accounts]
@@ -311,7 +312,7 @@ def display_user_orders(usr_id):
 
 	return account_orders
 
-#Change structure 
+#Change structure---DONE
 @accounts.route('/order_stage_change',methods = ["POST"])
 def order_stage_change():
 	req_data = request.get_json()
@@ -483,12 +484,14 @@ def show_all_activities():
 	return all_activities
 
 
-
+#Change structure--add company to post
 @accounts.route('/change_activity_type',methods = ["POST"])
 def change_activity_type():
 	req_data = request.get_json()
 	_id = req_data["_id"]
 	activity_type = req_data["activity_type"]
+	company = req_data["company"]
+
 	activities = mongo.Activities
 	orders = mongo.Orders
 	accounts = mongo.Accounts
@@ -496,6 +499,8 @@ def change_activity_type():
 
 	if activity["ai_activity"] == 1:
 		order = orders.find_one({"activity_id": _id})
+		order_company = order["company"].lower()
+		
 		
 		if order["stage"] == 1:
 
@@ -511,11 +516,11 @@ for cost """+str(order["cost_of_share"])+""" is finalized"""
 			send_email(account["email"] ,message)
 
 		elif order["stage"] == 3:
-			try:
-				current_price = get_stock_price(order["company"])
-			except:
-				current_price = 0.0
-			orders.update({"activity_id": _id},{"$set":{"stage": 0 , "cost_of_share": current_price}})
+			#try:
+			#	current_price = get_stock_price(order["company"])
+			#except:
+			#	current_price = 0.0
+			orders.update({"activity_id": _id},{"$set":{"stage": 0 , "cost_of_share": company[order_company]}})
 			order = orders.find_one({"activity_id":_id})
 			activities.update({"_id": ObjectId(_id)},{"$set":{"activity_type":activity_type}})
 			account = accounts.find_one({"_id": ObjectId(order["account_id"])})
@@ -667,8 +672,12 @@ def get_pie_chart_data():
 	return order
 
 #Change structure
-@accounts.route('/convert_finalized_orders')
+@accounts.route('/convert_finalized_orders',methods=["POST"])
 def convert_finalized_orders():
+	
+	req_data = request.get_json()
+	company = req_data["company"]
+
 	accounts = mongo.Accounts
 	orders = mongo.Orders
 	activities = mongo.Activities
@@ -676,31 +685,43 @@ def convert_finalized_orders():
 	finalized_orders = orders.find({"stage": 2}) #1
 	finalized_orders = list(finalized_orders)
 
-	for i in finalized_orders:
-		#get realtime stock price	Note: this api doesnt work on hreoku
-		current_price = get_stock_price(i["company"])
-		cost_of_share = get_cost_from_text(i["cost_of_share"])
-		#check order cost with realtime stock price
-		if cost_of_share == 'undefined':
-			cost_of_share = current_price
-		action = i["trans_type"].lower()
-		account = accounts.find_one({"_id":ObjectId(i["account_id"])})	#count(finalized orders)
+	order_ids = []
+	values = []
+	if finalized_orders != []:
+		for i in finalized_orders:
+			order_company = i["company"].lower()
+			action = i["trans_type"].lower()
+			cost_of_share = get_cost_from_text(i["cost_of_share"])
+			if cost_of_share == 'undefined':
+				cost_of_share = company[order_company]
 
-		if (action == 'buy' and cost_of_share >= current_price) or (action == 'sell' and cost_of_share <= current_price):
-			orders.update({"_id": i["_id"]},{"$set":{"stage": 3}})#count(finalized orders)
-			title = "Transact order for {}ing {} {} shares.".format(i["trans_type"],i["no_of_shares"],i["company"])
-			body = "Transact order of {} to {} {} shares of {}. Price:{}".format(account["name"],i["trans_type"],i["no_of_shares"],\
-			i["company"],cost_of_share)
-			date = datetime.datetime.now() + timedelta(hours = 2)
+			if (action == 'buy' and cost_of_share >= company[order_company]) or (action == 'sell' and cost_of_share <= company[order_company]):
+				order_ids.append(i["_id"])	#for updating orders to stage 3
+				
+				title = "Transact order for {}ing {} {} shares.".format(i["trans_type"],i["no_of_shares"],i["company"])
+				body = "Transact order of account to {} {} shares of {}. Price:{}".format(i["trans_type"],i["no_of_shares"],\
+				i["company"],company[order_company])
+				date = datetime.datetime.now() + timedelta(hours = 10)
+				values.append({"title": title, "body":body, "date":date, "activity_type": "future", "user_id": i["account_id"], "elapsed":0, "ai_activity": 1})
+		#list of values fgetting inserted insetead of multiple values///check on internet/think about it
 
-			activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "user_id": i["account_id"],\
-			"elapsed":0, "ai_activity": 1})	#count(finalized orders)
-			activity = activities.find({}).sort("_id",-1).limit(1)	#count(finalized orders)
-			orders.update({"_id": i["_id"]},{"$set" : {"activity_id": str(activity[0]["_id"])}})	#count(finalized orders)
+		
+		
+		len_order_ids = len(order_ids)
+		if len_order_ids > 0:
+			activities.insert(values)
+			inserted_activities = activities.find({}).sort("_id",-1).limit(len_order_ids)
+			inserted_activities = list(inserted_activities)
+			print("Inserted look below")
+			print(inserted_activities)
+			inserted_activities = inserted_activities[::-1]
+			print(inserted_activities)
+			activity_id = [i["_id"] for i in inserted_activities]
+			activity_id = list(map(str,activity_id))
 			
-		#max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)	#count(finalized orders)
-		#accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})	#count(finalized orders)
-	
+			for i in range(len_order_ids):
+				orders.update({"_id": order_ids[i]},{"$set":{"stage":3, "activity_id": inserted_activities}})
+
 	return "Success"
 
 
