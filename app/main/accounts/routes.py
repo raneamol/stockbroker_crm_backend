@@ -18,6 +18,7 @@ from app.api.send_email import send_email
 
 from app.api.get_stock_price import get_stock_price
 
+import re
 
 def myconverter(o):
 	if isinstance(o, datetime.datetime):
@@ -179,10 +180,11 @@ def complete_all_orders():
 
 	orders_company = [i["company"].lower() for i in all_orders]
 	orders_company = set(orders_company)
+	print(orders_company)
 	company_keys = set(company)
 	company_values = set(company.values())
 	companies = orders_company.intersection(company_keys)
-	
+	print(companies)
 	if bool(companies) == False and bool(orders_company) == True:
 		return "Send correct company"
 	elif bool(companies) == False and bool(orders_company) == False:
@@ -190,7 +192,8 @@ def complete_all_orders():
 	else:
 		#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
 		for i in companies:
-			orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
+			a = re.compile(i, re.IGNORECASE)
+			orders.update_many({"company": a, "stage":3},{"$set": {"cost_of_share": company[i]}})
 
 		orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
 		
@@ -199,7 +202,7 @@ def complete_all_orders():
 		all_orders = json.dumps(all_orders, default =myconverter)
 
 		return all_orders
-
+#	return "abc"
 
 @accounts.route('/send_email_after_transaction', methods = ["POST"])
 def send_email_after_transaction():
