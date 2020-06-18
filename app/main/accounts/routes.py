@@ -137,17 +137,21 @@ def complete_account_orders():
 	company_values = set(company.values())
 	companies = orders_company.intersection(company_keys)
 
+	if bool(companies) == False and bool(orders_company) == True:
+		return "Send correct company"
+	elif bool(companies) == False and bool(orders_company) == False:
+		return "No companies to be transacted"
+	else:
+		#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
+		for i in companies:
+			orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
 
-	#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
-	for i in companies:
-		orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
+		orders.update_many({"stage" : 3, 'account_id' : usr_id},{"$set": {"stage" : 0}})
+		
+		activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
 
-	orders.update_many({"stage" : 3, 'account_id' : usr_id},{"$set": {"stage" : 0}})
-	
-	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
-
-	all_orders = json.dumps(all_orders, default =myconverter)
-	return all_orders
+		all_orders = json.dumps(all_orders, default =myconverter)
+		return all_orders
 
 
 #Change structure... add commpany to post data?---DONE 
@@ -178,18 +182,23 @@ def complete_all_orders():
 	company_keys = set(company)
 	company_values = set(company.values())
 	companies = orders_company.intersection(company_keys)
-
-	#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
-	for i in companies:
-		orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
-
-	orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
 	
-	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
+	if bool(companies) == False and bool(orders_company) == True:
+		return "Send correct company"
+	elif bool(companies) == False and bool(orders_company) == False:
+		return "No companies to be transacted"
+	else:
+		#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
+		for i in companies:
+			orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
 
-	all_orders = json.dumps(all_orders, default =myconverter)
+		orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
+		
+		activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
 
-	return all_orders
+		all_orders = json.dumps(all_orders, default =myconverter)
+
+		return all_orders
 
 
 @accounts.route('/send_email_after_transaction', methods = ["POST"])
@@ -637,10 +646,11 @@ def get_line_graph_data():
 def top_accounts():
 	accounts = mongo.Accounts
 	orders = mongo.Orders
-	
-	order = orders.aggregate([{"$match": {"stage": 0}},{"$group":{"_id": "$account_id" ,"count": {"$sum" : "$no_of_shares"},"acc_score": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
+	try:
+		order = orders.aggregate([{"$match": {"stage": 0}},{"$group":{"_id": "$account_id" ,"count": {"$sum" : "$no_of_shares"},"acc_score": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
+	except:
+		return ("Incorrect type of cost_of_share present in stage 4 orders.")
 	order = list(order)
-	
 	order = sorted(order, key = lambda k:k['acc_score'], reverse = True)
 	
 	all_accounts = accounts.find({},{"_id":1,"name":1})
@@ -720,7 +730,7 @@ def convert_finalized_orders():
 			activity_id = list(map(str,activity_id))
 			
 			for i in range(len_order_ids):
-				orders.update({"_id": order_ids[i]},{"$set":{"stage":3, "activity_id": inserted_activities}})
+				orders.update({"_id": order_ids[i]},{"$set":{"stage":3, "activity_id": activity_id[i]}})
 
 	return "Success"
 

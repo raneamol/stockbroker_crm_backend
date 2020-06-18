@@ -116,7 +116,7 @@ def get_cost_from_text(s1):
         cost_of_share = "undefined"
     for value in pos:
         if value[1] == 'CD':
-            cost_of_share = int(value[0])
+            cost_of_share = float(value[0])
     if cost_of_share =='':
         cost_of_share = "undefined"
     return cost_of_share
