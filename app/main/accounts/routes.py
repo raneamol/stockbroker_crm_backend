@@ -145,14 +145,19 @@ def complete_account_orders():
 	else:
 		#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
 		for i in companies:
-			orders.update_many({"company": i, "stage":3},{"$set": {"cost_of_share": company[i]}})
+			a = re.compile(i, re.IGNORECASE)
+			orders.update_many({"company": a, "stage":3},{"$set": {"cost_of_share": company[i]}})
+
+		all_orders_new= orders.find({"stage":3})
+		all_orders_new = list(all_orders_new)
 
 		orders.update_many({"stage" : 3, 'account_id' : usr_id},{"$set": {"stage" : 0}})
 		
 		activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
 
-		all_orders = json.dumps(all_orders, default =myconverter)
-		return all_orders
+		all_orders_new = json.dumps(all_orders_new, default =myconverter)
+		
+		return all_orders_new
 
 
 #Change structure... add commpany to post data?---DONE 
@@ -195,13 +200,16 @@ def complete_all_orders():
 			a = re.compile(i, re.IGNORECASE)
 			orders.update_many({"company": a, "stage":3},{"$set": {"cost_of_share": company[i]}})
 
+		all_orders_new= orders.find({"stage":3})
+		all_orders_new = list(all_orders_new)
+
 		orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
 		
 		activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
 
-		all_orders = json.dumps(all_orders, default =myconverter)
+		all_orders_new = json.dumps(all_orders_new, default =myconverter)
 
-		return all_orders
+		return all_orders_new
 #	return "abc"
 
 @accounts.route('/send_email_after_transaction', methods = ["POST"])
