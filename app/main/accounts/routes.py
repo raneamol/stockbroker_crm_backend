@@ -208,8 +208,7 @@ def complete_all_orders():
 def send_email_after_transaction():
 	
 	accounts = mongo.Accounts
-	req_data = request.get_json()
-	all_orders = req_data["all_orders"]
+	all_orders = request.get_json()
 	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
 	all_accounts = list(all_accounts)
 	accounts_id = [i['_id'] for i in all_accounts]
