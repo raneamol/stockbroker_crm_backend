@@ -365,7 +365,7 @@ for cost """+str(order["cost_of_share"])+""" is finalized"""
 		orders.update({"_id":_id},{"$set": {"stage" : stage}})
 
 		title = "Transact order for {}ing {} {} shares.".format(order["trans_type"],order["no_of_shares"],order["company"])
-		body = "Transact order of {} to {} {} shares of {}. Price:{}".format(account["name"],order["trans_type"],order["no_of_shares"],\
+		body = "Transact order of {} to {} {} shares of {}. Desired Price:{}".format(account["name"],order["trans_type"],order["no_of_shares"],\
 		order["company"],order["cost_of_share"])
 		date = datetime.datetime.now() + timedelta(hours = 2)
 
@@ -610,9 +610,9 @@ def get_order_from_email():
 				price = ' '
 			else:
 				price = amount
-			title = "{} {} shares of {} for price:{}?".format(action.upper(),no_of_shares,company.upper(),price)
+			title = "{} {} shares of {} for desired price:{}?".format(action.upper(),no_of_shares,company.upper(),price)
 			print(account["name"])
-			body = "Finalize order of {} to {} {} shares of {}. Price:{}".format(account["name"],action,no_of_shares,company.upper(),price)
+			body = "Finalize order of {} to {} {} shares of {}. Desired Price:{}".format(account["name"],action,no_of_shares,company.upper(),price)
 			date = datetime.datetime.now() + timedelta(hours = 2)
 			#max_stage_order = orders.find({"account_id":str(account["_id"])}).sort("stage",-1).limit(1)
 
@@ -719,7 +719,7 @@ def convert_finalized_orders():
 				order_ids.append(i["_id"])	#for updating orders to stage 3
 				
 				title = "Transact order for {}ing {} {} shares.".format(i["trans_type"],i["no_of_shares"],i["company"])
-				body = "Transact order of account to {} {} shares of {}. Price:{}".format(i["trans_type"],i["no_of_shares"],\
+				body = "Transact order of account to {} {} shares of {}. Desired Price:{}".format(i["trans_type"],i["no_of_shares"],\
 				i["company"],company[order_company])
 				date = datetime.datetime.now() + timedelta(hours = 10)
 				values.append({"title": title, "body":body, "date":date, "activity_type": "future", "user_id": i["account_id"], "elapsed":0, "ai_activity": 1})
