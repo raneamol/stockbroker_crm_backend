@@ -122,9 +122,9 @@ def get_cost_from_text(s1):
     return cost_of_share
 
 
-def fetch_order():
+def fetch_order(email_id,password):
     order_list=[]
-    inbox = get_email()
+    inbox = get_email(email_id,password)
 
     accounts = mongo.Accounts
     emails = accounts.find({},{"_id":0, "email" : 1})

@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import jsonify, g, request
 
 import json
 
@@ -9,6 +9,8 @@ import datetime
 from ...extensions import mongo
 
 from app.main.leads import leads
+
+from app.utils.auth import token_required
 
 def myconverter(o):
 	if isinstance(o, datetime.datetime):
@@ -21,9 +23,11 @@ def myconverter(o):
 
 #RENAME TO show_all_leads--- DONE
 @leads.route('/show_all_leads')
+@token_required
 def show_all_leads():
 	leads = mongo.Leads
-	leads_view = leads.find({}, {"_id" : 1, "name" : 1, "job_type" : 1, "company" : 1, "city" : 1, "email" : 1, "phone_number" : 1})
+	current_user = g.current_user
+	leads_view = leads.find({"user_id": str(current_user["_id"])}, {"_id" : 1, "name" : 1, "job_type" : 1, "company" : 1, "city" : 1, "email" : 1, "phone_number" : 1})
 	#dumps converts cursor to string json
 	leads_view = list(leads_view)
 	leads_view = json.dumps(leads_view, default =myconverter)
@@ -31,6 +35,7 @@ def show_all_leads():
 
 
 @leads.route('/display_lead/<usr_id>')
+@token_required
 def display_lead(usr_id):
 	leads = mongo.Leads
 	lead = leads.find({"_id" : ObjectId(usr_id)}, {"ml_fields": 0})
@@ -42,6 +47,7 @@ def display_lead(usr_id):
 
 #edit lead details
 @leads.route('/edit_lead', methods = ['POST'])
+@token_required
 def edit_lead():
 	req_data = request.get_json()
 
@@ -89,6 +95,7 @@ def edit_lead():
 
 
 @leads.route('/create_lead', methods = ["POST"])
+@token_required
 def create_lead():
 	req_data = request.get_json()
 	city = req_data["city"]
@@ -116,6 +123,8 @@ def create_lead():
 	ml_unemployed = req_data["ml_unemployed"]
 	ml_willRevert = req_data["ml_willRevert"]
 
+	current_user = g.current_user
+
 	leads = mongo.Leads
 
 	values = {
@@ -132,6 +141,7 @@ def create_lead():
 	"state": state, 
 	"status": status,
     "lead_source":lead_source,
+	"user_id":str(current_user["_id"]),
 	"ml_fields" : {
         "const" : 1,
         "Do Not Email" : ml_doNotEmail,
@@ -156,6 +166,7 @@ def create_lead():
 
 #RENAME TO convert_lead_to_account--- DONE
 @leads.route('/convert_lead_to_account', methods = ["POST"])
+@token_required
 def convert_lead_to_accounts():
 	req_data = request.get_json()
 
@@ -208,10 +219,11 @@ def convert_lead_to_accounts():
 
 
 @leads.route('/get_all_lead_names')
+@token_required
 def get_all_lead_names():
 	leads = mongo.Leads
-
-	all_leads = leads.find({},{"_id":1,"name":1})
+	current_user = g.current_user
+	all_leads = leads.find({"user_id": str(current_user["_id"])},{"_id":1,"name":1})
 	all_leads = list(all_leads)
 	all_leads = json.dumps(all_leads, default =myconverter)
 

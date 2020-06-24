@@ -1,4 +1,4 @@
-from flask import jsonify, request, Response
+from flask import jsonify, request, g
 
 from bson.objectid import ObjectId
 
@@ -20,6 +20,10 @@ from app.api.get_stock_price import get_stock_price
 
 import re
 
+from app.utils.auth import token_required
+
+from cryptography.fernet import Fernet
+
 def myconverter(o):
 	if isinstance(o, datetime.datetime):
 		return o.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -30,15 +34,18 @@ def myconverter(o):
 
 #RENAME TO show_all_accounts--- DONE
 @accounts.route('/show_all_accounts')
+@token_required
 def show_all_accounts():
 	accounts = mongo.Accounts
-	accounts_view = accounts.find({}, {"_id" : 1, "name" : 1, "job_type" : 1, "company" : 1, "city" : 1, "email" : 1, "phone_number" : 1})
+	current_user = g.current_user
+	accounts_view = accounts.find({"user_id": str(current_user["_id"])}, {"_id" : 1, "name" : 1, "job_type" : 1, "company" : 1, "city" : 1, "email" : 1, "phone_number" : 1})
 	accounts_view = list(accounts_view)
 	accounts_view = json.dumps(accounts_view, default = myconverter)
 	return accounts_view
 
 
 @accounts.route('/display_account/<usr_id>')
+@token_required
 def display_account(usr_id):
 	accounts = mongo.Accounts
 	orders = mongo.Orders
@@ -61,6 +68,7 @@ def display_account(usr_id):
 
 
 @accounts.route('/edit_account', methods = ['POST'])
+@token_required
 def edit_account():
 	req_data = request.get_json()
 	#JSON data into variables
@@ -113,6 +121,7 @@ def edit_account():
 #Change structure...?---DONE 
 #RENAME complete_account_orders--- DONE
 @accounts.route('/complete_account_orders',methods = ["POST"])
+@token_required
 def complete_account_orders():
 	req_data = request.get_json()
 	usr_id = req_data["account_id"]
@@ -162,6 +171,7 @@ def complete_account_orders():
 
 #Change structure... add commpany to post data?---DONE 
 @accounts.route('/complete_all_orders', methods = ["POST"])
+@token_required
 def complete_all_orders():	
 	accounts = mongo.Accounts
 	orders = mongo.Orders
@@ -169,20 +179,17 @@ def complete_all_orders():
 	req_data = request.get_json()
 	company = req_data["company"]
 
+	current_user = g.current_user
 
-	all_orders= orders.find({"stage":3})
+	all_accounts = accounts.find({"user_id": str(current_user["_id"])})
+	all_accounts = list(all_accounts)
+	account_id = [i['_id'] for i in all_accounts]
+	account_id = list(map(str,account_id))
+	all_orders= orders.find({"stage":3,"account_id":{"$in": all_accounts}})
 	all_orders = list(all_orders)
 	activity_id = [i['activity_id'] for i in all_orders]
 	activity_id = list(map(ObjectId,activity_id))
 	
-	#add this to send email api
-	#all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
-	#all_accounts = list(all_accounts)
-	#accounts_id = [i['_id'] for i in all_accounts]
-	#all_accounts_id = list(map(str,accounts_id))
-	#all_accounts_id = set(all_accounts_id)
-
-
 	orders_company = [i["company"].lower() for i in all_orders]
 	orders_company = set(orders_company)
 	print(orders_company)
@@ -198,23 +205,23 @@ def complete_all_orders():
 		#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
 		for i in companies:
 			a = re.compile(i, re.IGNORECASE)
-			orders.update_many({"company": a, "stage":3},{"$set": {"cost_of_share": company[i]}})
+			orders.update_many({"company": a, "stage":3,"account_id": {"$in":account_id}},{"$set": {"cost_of_share": company[i]}})
 
 		all_orders_new= orders.find({"stage":3})
 		all_orders_new = list(all_orders_new)
 
-		orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
+		orders.update_many({"stage" : 3,"account_id": {"$in":account_id}},{"$set": {"stage" : 0}})
 		
 		activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
 
 		all_orders_new = json.dumps(all_orders_new, default =myconverter)
 
 		return all_orders_new
-#	return "abc"
+
 
 @accounts.route('/send_email_after_transaction', methods = ["POST"])
+@token_required
 def send_email_after_transaction():
-	
 	accounts = mongo.Accounts
 	all_orders = request.get_json()
 	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
@@ -235,7 +242,7 @@ Hi """+str(account["name"])+""",
 Your order to """+str(i["trans_type"]) +""" """+str(i["no_of_shares"])+""" shares of """+str(i["company"])+"""\
 for cost Rs."""+str(i["cost_of_share"])+""" has been transacted."""
 
-		send_email(account["email"],message)
+		send_email(account["email"],message,current_user["username"],email_pw)
 	
 	return "Emails have been sent."
 
@@ -243,6 +250,7 @@ for cost Rs."""+str(i["cost_of_share"])+""" has been transacted."""
 
 
 @accounts.route('/create_account', methods = ["POST"])
+@token_required
 def create_account():
 	req_data = request.get_json()
 
@@ -264,6 +272,7 @@ def create_account():
 	phone_number = req_data["phone_number"]
 	state = req_data["state"]
 	trading_accno = req_data["trading_accno"]
+	current_user = g.current_user
 
 	accounts = mongo.Accounts
 
@@ -283,7 +292,8 @@ def create_account():
 	"name": name, 
 	"phone_number": phone_number, 
 	"state": state, 
-	"trading_accno": trading_accno
+	"trading_accno": trading_accno,
+	"user_id": str(current_user["_id"]) 
 }
 	accounts.insert_one(values)
 
@@ -291,6 +301,7 @@ def create_account():
 
 
 @accounts.route('/create_order',methods = ["POST"])
+@token_required
 def create_order():
 	req_data = request.get_json()
 
@@ -322,6 +333,7 @@ def create_order():
 
 
 @accounts.route('/display_account_orders/<usr_id>')
+@token_required
 def display_user_orders(usr_id):
 	orders = mongo.Orders
 
@@ -333,6 +345,7 @@ def display_user_orders(usr_id):
 
 #Change structure---DONE
 @accounts.route('/order_stage_change',methods = ["POST"])
+@token_required
 def order_stage_change():
 	req_data = request.get_json()
 	_id = req_data["_id"]
@@ -358,7 +371,7 @@ Hi """+str(account["name"])+""",
 Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+""" shares of """+str(order["company"])+"""\
 for cost """+str(order["cost_of_share"])+""" is finalized"""
 	
-		send_email(account["email"],message)
+		send_email(account["email"],message,current_user["username"],email_pw)
 
 	
 	elif stage == 3:
@@ -369,7 +382,7 @@ for cost """+str(order["cost_of_share"])+""" is finalized"""
 		order["company"],order["cost_of_share"])
 		date = datetime.datetime.now() + timedelta(hours = 2)
 
-		activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "user_id": order["account_id"],\
+		activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "customer_id": order["account_id"],\
 		"elapsed":0, "ai_activity": 1})
 		activity = activities.find({}).sort("_id",-1).limit(1)
 		orders.update({"_id": _id},{"$set" : {"activity_id": str(activity[0]["_id"])}})
@@ -386,7 +399,7 @@ Hi """+str(account["name"])+""",
 Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+""" shares of """+str(order["company"])+\
 """ has been transacted for Rs."""+str(order["cost_of_share"])
 	
-		send_email(email_id,message)
+		send_email(email_id,message,current_user["username"],email_pw)
 	
 	else:
 		print("Error in updating")	
@@ -396,18 +409,21 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 
 
 @accounts.route('/show_all_orders')
+@token_required
 def show_all_orders():
 	orders = mongo.Orders
 
 	accounts = mongo.Accounts
 
-	all_orders = orders.find()
-	all_accounts = accounts.find({},{"_id":1,"name":1})
-	all_orders = list(all_orders)
+	current_user = g.current_user
+
+	all_accounts = accounts.find({"user_id": str(current_user["_id"])},{"_id":1,"name":1})
 	all_accounts = list(all_accounts)
 	accounts_id = [i['_id'] for i in all_accounts]
-	all_accounts_id = list(map(str,accounts_id))
-	all_accounts_id = set(all_accounts_id)
+	accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(accounts_id)
+	all_orders = orders.find({"account_id": {"$in": accounts_id}})
+	all_orders = list(all_orders)
 
 	for i in all_orders:
 		if i["account_id"] in all_accounts_id:
@@ -421,6 +437,7 @@ def show_all_orders():
 
 
 @accounts.route("/delete_order/<order_id>")
+@token_required
 def delete_order(order_id):
 
 	orders = mongo.Orders
@@ -444,6 +461,7 @@ def delete_order(order_id):
 
 
 @accounts.route('/create_activity',methods = ["POST"])
+@token_required
 def create_activity():
 	req_data = request.get_json()
 	title = req_data["title"]
@@ -451,7 +469,7 @@ def create_activity():
 	date = req_data["date"]
 	date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S.%fZ')
 	activity_type = req_data["activity_type"]
-	user_id = req_data["user_id"]
+	customer_id = req_data["user_id"]
 
 	activities = mongo.Activities
 
@@ -460,7 +478,7 @@ def create_activity():
     "body" : body,
     "date" : date,
     "activity_type" : activity_type,
-	"user_id": user_id,
+	"customer_id": customer_id,
 	"elapsed": 0,
 	"ai_activity": 0
 }
@@ -473,13 +491,14 @@ def create_activity():
 
 
 @accounts.route('/show_user_activities/<usr_id>')
+@token_required
 def show_user_activities(usr_id):
 	
 	activities = mongo.Activities
 
 	activities.update_many({"activity_type": "future", "date": { "$lte" : datetime.datetime.now()}},{ "$set": { "elapsed": 1 ,"activity_type": "past"}})
 
-	account_activities = activities.find({'user_id': usr_id})
+	account_activities = activities.find({'customer_id': usr_id})
 	account_activities = list(account_activities)
 	account_activities = json.dumps(account_activities, default=myconverter)
 
@@ -489,12 +508,28 @@ def show_user_activities(usr_id):
 
 
 @accounts.route('/show_all_activities')
+@token_required
 def show_all_activities():
 	activities = mongo.Activities
+	accounts = mongo.Accounts
+	leads = mongo.Leads
+
+	current_user = g.current_user
+	all_accounts = accounts.find({"user_id": str(current_user["_id"])})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	accounts_id = list(map(str,accounts_id))
+
+	all_leads = leads.find({"user_id": str(current_user["_id"])})
+	all_leads = list(all_leads)
+	leads_id = [i['_id'] for i in all_leads]
+	leads_id = list(map(str,leads_id))
+
+	users_id = accounts_id+leads_id
 
 	activities.update_many({"activity_type": "future", "date": { "$lte" : datetime.datetime.now()}},{ "$set": { "elapsed": 1 ,"activity_type": "past"}})
-
-	all_activities = activities.find()
+	
+	all_activities = activities.find({"customer_id":{"$in": users_id}})
 	
 	all_activities = list(all_activities)
 
@@ -505,6 +540,7 @@ def show_all_activities():
 
 #Change structure--add company to post
 @accounts.route('/change_activity_type',methods = ["POST"])
+@token_required
 def change_activity_type():
 	req_data = request.get_json()
 	_id = req_data["_id"]
@@ -532,7 +568,7 @@ Hi """+str(account["name"])+""",
 Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+""" shares of """+str(order["company"])+"""\
 for cost """+str(order["cost_of_share"])+""" is finalized"""
 			
-			send_email(account["email"] ,message)
+			send_email(account["email"] ,message,current_user["username"],email_pw)
 
 		elif order["stage"] == 3:
 			#try:
@@ -549,7 +585,7 @@ Hi """+str(account["name"])+""",
 Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+""" shares of """+str(order["company"])+\
 """ has been transacted for Rs."""+str(order["cost_of_share"])
 			
-			send_email(account["email"] ,message)
+			send_email(account["email"] ,message,current_user["username"],email_pw)
 		
 		#max_stage_order = orders.find({"account_id": order["account_id"]}).sort("stage",-1).limit(1)
 
@@ -563,15 +599,26 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 
 #change structure--Partially dodne, but good enough
 @accounts.route('/get_order_from_email')
+@token_required
 def get_order_from_email():
-	order_list = fetch_order()
+
+	current_user = g.current_user
+	enc_email_pw = current_user["email_pw"]
+	cipher_key = environ.get("cypher_key")
+	cipher_suite = Fernet("cipher_key")
+	enc_email_pw = enc_email_pw.encode('utf-8')
+	email_pw = cipher_suite.decrypt(enc_email_pw)
+	email_pw = email_pw.decode('utf-8')
+	
+	
+	order_list = fetch_order(current_user["username"],email_pw)
 	print(order_list)
 
 	accounts = mongo.Accounts
 	orders = mongo.Orders
 	activities = mongo.Activities
 
-	all_accounts = accounts.find({},{"_id": 1, "name": 1, "email": 1})
+	all_accounts = accounts.find({"user_id": str(current_user["_id"])},{"_id": 1, "name": 1, "email": 1})
 
 	all_accounts = list(all_accounts)
 	#take all emails
@@ -617,19 +664,21 @@ def get_order_from_email():
 			#max_stage_order = orders.find({"account_id":str(account["_id"])}).sort("stage",-1).limit(1)
 
 			#accounts.update({"_id": account["_id"]}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
-			activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "user_id": str(account["_id"]), "elapsed":0, "ai_activity": 1})
+			activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "customer_id": str(account["_id"]), "elapsed":0, "ai_activity": 1})
 			activity = activities.find({}).sort("_id",-1).limit(1)
-			orders.insert({ "company": company, "no_of_shares": no_of_shares, "cost_of_share": price, "stage": 1, "account_id":str(account["_id"]), "trans_type": action, "activity_id": str(activity[0]["_id"]), "creation_date":datetime.datetime.now()})
+			orders.insert({ "company": company, "no_of_shares": no_of_shares, "cost_of_share": price, "stage": 1, "account_id":str(account["_id"]), "trans_type": action,\
+			"activity_id": str(activity[0]["_id"]), "creation_date":datetime.datetime.now()})
 
 		return "Inserted"
 
 
 
 @accounts.route('/get_all_account_names')
+@token_required
 def get_all_account_names():
 	accounts = mongo.Accounts
-
-	all_accounts = accounts.find({},{"_id":1,"name":1})
+	current_user = g.current_user
+	all_accounts = accounts.find({"user_id": str(current_user["_id"])},{"_id":1,"name":1})
 	all_accounts = list(all_accounts)
 	all_accounts = json.dumps(all_accounts, default =myconverter)
 
@@ -637,9 +686,16 @@ def get_all_account_names():
 
 #RENAME get_line_graph_data--- DONE
 @accounts.route('/get_line_graph_data')
+@token_required
 def get_line_graph_data():
 	orders = mongo.Orders
-	order = orders.find({"stage" : 0},{"creation_date": 1, "cost_of_share": 1, "no_of_shares": 1})
+	accounts = mongo.Accounts
+	current_user = g.current_user
+	all_accounts = accounts.find({"user_id": str(current_user["_id"])})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	accounts_id = list(map(str,accounts_id))
+	order = orders.find({"stage" : 0, "account_id": {"$in": accounts_id}},{"creation_date": 1, "cost_of_share": 1, "no_of_shares": 1})
 	order = list(order)
 	final = []
 	for i in order:
@@ -653,39 +709,54 @@ def get_line_graph_data():
 
 #change structure----DONE
 @accounts.route('/top_accounts')
+@token_required
 def top_accounts():
 	accounts = mongo.Accounts
 	orders = mongo.Orders
+
+	current_user = g.current_user
+
+	all_accounts = accounts.find({"user_id": str(current_user["_id"])},{"_id":1,"name":1})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(accounts_id)
+	
 	try:
-		order = orders.aggregate([{"$match": {"stage": 0}},{"$group":{"_id": "$account_id" ,"count": {"$sum" : "$no_of_shares"},"acc_score": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
+		order = orders.aggregate([{"$match": {"stage": 0}},{"$group":{"_id": "$account_id" ,\
+		"count": {"$sum" : "$no_of_shares"},"acc_score": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
 	except:
-		return ("Incorrect type of cost_of_share present in stage 4 orders.")
+		return ("Incorrect type of cost_of_share present in stage 0 orders.")
 	order = list(order)
 	order = sorted(order, key = lambda k:k['acc_score'], reverse = True)
 	
-	all_accounts = accounts.find({},{"_id":1,"name":1})
-	all_accounts = list(all_accounts)
-	accounts_id = [i['_id'] for i in all_accounts]
-	all_accounts_id = list(map(str,accounts_id))
-	all_accounts_id = set(all_accounts_id)
-
+	top_accounts=[]
 	for i in order:
 		if i["_id"] in all_accounts_id:
 			abc = i["_id"]		
 			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
-			i["name"] = account["name"]
+			top_accounts.append({"name": account["name"],"acc_score":i["acc_score"]})
+
 	
-	order = order[:3]
-	order = json.dumps(order, default = myconverter)
-	return order
+	top_accounts = top_accounts[:3]
+	top_accounts = json.dumps(top_accounts, default = myconverter)
+	return top_accounts
 
 
 #RENAME get_pie_chart_data--- DONE
 @accounts.route('/get_pie_chart_data')
+@token_required
 def get_pie_chart_data():
 	accounts = mongo.Accounts
 	orders = mongo.Orders
-	order = orders.find({},{"stage":1, "cost_of_share":1, "no_of_shares":1})
+
+	current_user = g.current_user
+
+	all_accounts = accounts.find({"user_id":str(current_user["_id"])})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	accounts_id = list(map(str,accounts_id))
+	order = orders.find({"account_id":{"$in": accounts_id}},{"stage":1, "cost_of_share":1, "no_of_shares":1})
 	order = list(order)
 
 	order = json.dumps(order, default = myconverter)
@@ -693,6 +764,7 @@ def get_pie_chart_data():
 
 #Change structure
 @accounts.route('/convert_finalized_orders',methods=["POST"])
+@token_required
 def convert_finalized_orders():
 	
 	req_data = request.get_json()
@@ -702,7 +774,14 @@ def convert_finalized_orders():
 	orders = mongo.Orders
 	activities = mongo.Activities
 
-	finalized_orders = orders.find({"stage": 2}) #1
+	current_user = g.current_user
+
+	all_accounts = accounts.find({"user_id":str(current_user["_id"])})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	accounts_id = list(map(str,accounts_id))
+
+	finalized_orders = orders.find({"stage": 2,"account_id":{"$in": accounts_id}}) #1
 	finalized_orders = list(finalized_orders)
 
 	order_ids = []
@@ -722,7 +801,8 @@ def convert_finalized_orders():
 				body = "Transact order of account to {} {} shares of {}. Desired Price:{}".format(i["trans_type"],i["no_of_shares"],\
 				i["company"],company[order_company])
 				date = datetime.datetime.now() + timedelta(hours = 10)
-				values.append({"title": title, "body":body, "date":date, "activity_type": "future", "user_id": i["account_id"], "elapsed":0, "ai_activity": 1})
+				values.append({"title": title, "body":body, "date":date, "activity_type": "future",\
+				"customer_id": i["account_id"], "elapsed":0, "ai_activity": 1})
 		#list of values fgetting inserted insetead of multiple values///check on internet/think about it
 
 		
@@ -746,6 +826,7 @@ def convert_finalized_orders():
 
 
 @accounts.route('/delete_activity/<activity_id>')
+@token_required
 def delete_activity(activity_id):
 	activities = mongo.Activities
 	orders = mongo.Orders
@@ -768,6 +849,7 @@ def delete_activity(activity_id):
 #RENAME TO get_account_turnover--- DONE
 #function error
 @accounts.route('get_account_turnover/<usr_id>')
+@token_required
 def get_account_turnover(usr_id):
 	accounts = mongo.Accounts
 	orders = mongo.Orders

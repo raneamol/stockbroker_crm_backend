@@ -15,10 +15,9 @@ gmail_time = os.path.join(basedir, 'data/gmail_time.txt')
 gmail_mail = os.path.join(basedir, 'data/gmail_mail.txt')
 
 
-def get_email():
+def get_email(user, password):
     #auth details
-    user = environ.get("user")
-    password = environ.get("password")
+    
     imap_url = "imap.gmail.com"
     
 
