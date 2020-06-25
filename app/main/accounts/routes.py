@@ -233,6 +233,14 @@ def send_email_after_transaction():
 	all_accounts_id = list(map(str,accounts_id))
 	all_accounts_id = set(all_accounts_id)
 
+	current_user = g.current_user
+	enc_email_pw = current_user["email_pw"]
+	cipher_key = environ.get("cypher_key")
+	cipher_suite = Fernet("cipher_key")
+	enc_email_pw = enc_email_pw.encode('utf-8')
+	email_pw = cipher_suite.decrypt(enc_email_pw)
+	email_pw = email_pw.decode('utf-8')
+
 	for i in all_orders:
 		
 		if i["account_id"] in all_accounts_id:
@@ -359,6 +367,13 @@ def order_stage_change():
 	orders = mongo.Orders
 	accounts = mongo.Accounts
 	activities = mongo.Activities
+
+	enc_email_pw = current_user["email_pw"]
+	cipher_key = environ.get("cypher_key")
+	cipher_suite = Fernet("cipher_key")
+	enc_email_pw = enc_email_pw.encode('utf-8')
+	email_pw = cipher_suite.decrypt(enc_email_pw)
+	email_pw = email_pw.decode('utf-8')
 
 	order = orders.find_one({"_id":_id})
 	order_company = order["company"].lower()
@@ -573,6 +588,13 @@ def change_activity_type():
 	orders = mongo.Orders
 	accounts = mongo.Accounts
 	activity = activities.find_one({"_id": ObjectId(_id)})
+
+	enc_email_pw = current_user["email_pw"]
+	cipher_key = environ.get("cypher_key")
+	cipher_suite = Fernet("cipher_key")
+	enc_email_pw = enc_email_pw.encode('utf-8')
+	email_pw = cipher_suite.decrypt(enc_email_pw)
+	email_pw = email_pw.decode('utf-8')
 
 	if activity["ai_activity"] == 1:
 		order = orders.find_one({"activity_id": _id})
