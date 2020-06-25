@@ -435,6 +435,25 @@ def show_all_orders():
 
 	return all_orders
 
+@accounts.route('/show_all_companies')
+def show_all_companies():
+	orders = mongo.Orders
+
+	accounts = mongo.Accounts
+
+
+	all_accounts = accounts.find({},{"_id":1,"name":1})
+	all_accounts = list(all_accounts)
+	accounts_id = [i['_id'] for i in all_accounts]
+	accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(accounts_id)
+	all_companies = orders.find({},{"company":1,"_id":0})
+	all_companies = list(all_companies)
+
+	all_companies = json.dumps(all_companies, default =myconverter)
+
+	return all_companies
+
 
 @accounts.route("/delete_order/<order_id>")
 @token_required
