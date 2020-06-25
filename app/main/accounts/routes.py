@@ -368,6 +368,8 @@ def order_stage_change():
 	accounts = mongo.Accounts
 	activities = mongo.Activities
 
+	current_user = g.current_user
+
 	enc_email_pw = current_user["email_pw"]
 	cipher_key = environ.get("cipher_key")
 	cipher_suite = Fernet("cipher_key")
@@ -589,6 +591,7 @@ def change_activity_type():
 	accounts = mongo.Accounts
 	activity = activities.find_one({"_id": ObjectId(_id)})
 
+	current_user = g.current_user
 	enc_email_pw = current_user["email_pw"]
 	cipher_key = environ.get("cipher_key")
 	cipher_suite = Fernet("cipher_key")
