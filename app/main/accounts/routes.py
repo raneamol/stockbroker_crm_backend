@@ -235,7 +235,7 @@ def send_email_after_transaction():
 
 	current_user = g.current_user
 	enc_email_pw = current_user["email_pw"]
-	cipher_key = environ.get("cipher_key")
+	cipher_key = environ.get("crypt_key")
 	cipher_suite = Fernet("cipher_key")
 	enc_email_pw = enc_email_pw.encode('utf-8')
 	email_pw = cipher_suite.decrypt(enc_email_pw)
@@ -371,7 +371,7 @@ def order_stage_change():
 	current_user = g.current_user
 
 	enc_email_pw = current_user["email_pw"]
-	cipher_key = environ.get("cipher_key")
+	cipher_key = environ.get("crypt_key")
 	cipher_suite = Fernet("cipher_key")
 	enc_email_pw = enc_email_pw.encode('utf-8')
 	email_pw = cipher_suite.decrypt(enc_email_pw)
@@ -593,7 +593,7 @@ def change_activity_type():
 
 	current_user = g.current_user
 	enc_email_pw = current_user["email_pw"]
-	cipher_key = environ.get("cipher_key")
+	cipher_key = environ.get("crypt_key")
 	cipher_suite = Fernet("cipher_key")
 	enc_email_pw = enc_email_pw.encode('utf-8')
 	email_pw = cipher_suite.decrypt(enc_email_pw)
@@ -651,7 +651,7 @@ def get_order_from_email():
 
 	current_user = g.current_user
 	enc_email_pw = current_user["email_pw"]
-	cipher_key = environ.get("cipher_key")
+	cipher_key = environ.get("crypt_key")
 	cipher_suite = Fernet("cipher_key")
 	enc_email_pw = enc_email_pw.encode('utf-8')
 	email_pw = cipher_suite.decrypt(enc_email_pw)
