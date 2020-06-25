@@ -24,6 +24,8 @@ from app.utils.auth import token_required
 
 from cryptography.fernet import Fernet
 
+from os import environ
+
 def myconverter(o):
 	if isinstance(o, datetime.datetime):
 		return o.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -185,8 +187,9 @@ def complete_all_orders():
 	all_accounts = list(all_accounts)
 	account_id = [i['_id'] for i in all_accounts]
 	account_id = list(map(str,account_id))
-	all_orders= orders.find({"stage":3,"account_id":{"$in": all_accounts}})
+	all_orders= orders.find({"stage":3,"account_id":{"$in": account_id}})
 	all_orders = list(all_orders)
+	print(all_orders)
 	activity_id = [i['activity_id'] for i in all_orders]
 	activity_id = list(map(ObjectId,activity_id))
 	
@@ -754,7 +757,7 @@ def top_accounts():
 		if i["_id"] in all_accounts_id:
 			abc = i["_id"]		
 			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
-			top_accounts.append({"name": account["name"],"acc_score":i["acc_score"]})
+			top_accounts.append({"_id": i["_id"],"name": account["name"],"acc_score":i["acc_score"]})
 
 	
 	top_accounts = top_accounts[:3]

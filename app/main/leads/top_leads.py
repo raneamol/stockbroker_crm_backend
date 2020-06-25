@@ -6,7 +6,7 @@ import pandas as pd
 
 import pickle
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, g
 
 from app.main.leads import leads
 
@@ -16,6 +16,7 @@ import datetime
 
 from bson.objectid import ObjectId
 
+from app.utils.auth import token_required
 
 from ...extensions import mongo
 
@@ -35,15 +36,18 @@ name = os.path.join(basedir, 'data/names.csv')
 
 
 @leads.route('/top_leads')
+@token_required
 def leads_top():
 
     leads = mongo.Leads
     
-    lead_names = leads.find({},{"name":1,"_id": 1})
+    current_user = g.current_user
+
+    lead_names = leads.find({"user_id":str(current_user["_id"])},{"name":1,"_id": 1})
     lead_names = list(lead_names)
     names = pd.DataFrame(lead_names)
     ml_data = []
-    lead_ml_data = leads.find({},{"ml_fields": 1})
+    lead_ml_data = leads.find({"user_id":str(current_user["_id"])},{"ml_fields": 1})
     lead_ml_data = list(lead_ml_data)
     for i in  lead_ml_data:
         del i["_id"]
