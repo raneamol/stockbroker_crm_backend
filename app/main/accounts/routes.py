@@ -831,14 +831,21 @@ def convert_finalized_orders():
 	all_accounts = list(all_accounts)
 	accounts_id = [i['_id'] for i in all_accounts]
 	accounts_id = list(map(str,accounts_id))
+	all_accounts_id = set(accounts_id)
 
 	finalized_orders = orders.find({"stage": 2,"account_id":{"$in": accounts_id}}) #1
 	finalized_orders = list(finalized_orders)
 
 	order_ids = []
 	values = []
+	
 	if finalized_orders != []:
 		for i in finalized_orders:
+			if i["account_id"] in all_accounts_id:
+				abc = i["account_id"]
+				account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
+				i["name"] = account["name"]
+
 			order_company = i["company"].lower()
 			action = i["trans_type"].lower()
 			cost_of_share = get_cost_from_text(i["cost_of_share"])
@@ -849,8 +856,8 @@ def convert_finalized_orders():
 				order_ids.append(i["_id"])	#for updating orders to stage 3
 				
 				title = "Transact order for {}ing {} {} shares.".format(i["trans_type"],i["no_of_shares"],i["company"])
-				body = "Transact order of account to {} {} shares of {}. Desired Price:{}".format(i["trans_type"],i["no_of_shares"],\
-				i["company"],company[order_company])
+				body = "Transact order of {} to {} {} shares of {}. Desired Price:{}".format(i["name"],i["trans_type"],i["no_of_shares"],\
+				i["company"],i["cost_of_share"])
 				date = datetime.datetime.now() + timedelta(hours = 10)
 				values.append({"title": title, "body":body, "date":date, "activity_type": "future",\
 				"customer_id": i["account_id"], "elapsed":0, "ai_activity": 1})
