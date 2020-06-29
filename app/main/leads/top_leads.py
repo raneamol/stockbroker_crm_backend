@@ -31,8 +31,6 @@ def myconverter(o):
 
 basedir=os.path.dirname(os.path.abspath(__file__))
 fullpath = os.path.join(basedir, 'data/model.pkl')
-fullpath1 = os.path.join(basedir, 'data/Leads_info.csv')
-name = os.path.join(basedir, 'data/names.csv')
 
 
 @leads.route('/top_leads')
@@ -83,19 +81,3 @@ def leads_top():
     #returning the predictions as json    
     return final
 
-'''
-For inserting ml values to leads collectiton
-@leads.route("/add_to_leads")
-def add_to_leads():
-    leads = mongo.Leads
-    lead = leads.find({})
-    lead = list(lead)
-    #values = some json
-    j= 0
-    #print(value)
-    for i in lead:
-        leads.update({"_id": i["_id"]},{"$set": {"ml_fields": value[j]}})
-        j+=1
-        #print(i)
-    return "Inserted"
-    '''

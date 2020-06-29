@@ -11,7 +11,6 @@ from spacy import displacy
 from collections import Counter
 import en_core_web_sm
 
-from pprint import pprint
 import os
 
 import pandas as pd
@@ -25,24 +24,7 @@ company_sec_id = os.path.join(basedir, 'data\company_id.csv')
 
 
 
-'''
-def check_spacy_model():
-    nlp = spacy.load('/nlp_model')
-    nlp1 = spacy.load('en_core_web_sm')
-    doc = nlp('Buy 5 INFY shares if the price is below 60 rs.')
-    doc1 = nlp1('Buy 5 INFY shares if the price is below 60 rs.')
-    pprint([(X.text, X.label_) for X in doc.ents])
-    pprint([(X.text, X.label_) for X in doc1.ents])
-    
-    for X in doc.ents:
-            if X.label_=='CARDINAL':
-                no_of_shares = X.text
-    for X in doc1.ents:        
-            if X.label_=='MONEY':
-                amount = X.text
-                print(amount)
-check_spacy_model()
-'''
+
 def split_into_sentence(body):
     body = html2text.html2text(body)
     sent_list = sent_tokenize(body)
@@ -73,11 +55,9 @@ def check_nlp(sent):
         for value in tokens_without_sw:
             if value[0]=='buy' or value[0]=='purchase':
                 action = 'buy'
-                print(action)
 
             elif value[0]=='sell':
                 action = value[0]
-                print(action)
 
             elif value[1]=='JJ':
                 c = value[0].upper()
@@ -100,11 +80,9 @@ def check_nlp(sent):
         for X in doc1.ents:
             if X.label_=='CARDINAL':
                 no_of_shares = X.text
-                print(no_of_shares)
         for X in doc.ents:
             if X.label_=='MONEY':
                 amount = X.text
-                print(amount)
         try:
             final_json = {
             "company":company,
@@ -153,7 +131,6 @@ def fetch_order(email_id,password):
                     continue
                 else:
                     break
-            print(final)
             if final != 0:
                 email_id = (i["From"])
                 final["From"] = email_id
