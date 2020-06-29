@@ -7,25 +7,22 @@ from datetime import timezone
 from email.header import decode_header
 import html2text
 #from app.settings import user, password
-
+from ..extensions import mongo
 from os import environ
 
 basedir=os.path.dirname(os.path.abspath(__file__))
-gmail_time = os.path.join(basedir, 'data/gmail_time.txt')
-gmail_mail = os.path.join(basedir, 'data/gmail_mail.txt')
+
 
 
 def get_email(user, password):
     #auth details
     
     imap_url = "imap.gmail.com"
+    users = mongo.Users    
     
-
     date_time = dt.datetime.now()
-
-    f = open(gmail_time,"r")
-    t = f.read()
-    f.close()
+    email_date = users.find_one({"username":user},{"email_date":1,"_id":0})
+    t = email_date["email_date"]
 
     #Initially put some date in the following format, inside gmail_time.txt---(Fri, 10 Apr 2020 08:33:13 -0700)
     a = dt.datetime.strptime(t, '%a, %d %b %Y %H:%M:%S %z')
@@ -115,10 +112,8 @@ def get_email(user, password):
 
                         test_json.append(abc)
 
-                        f2 = open(gmail_time, "w+")
-
-                        f2.write(date)
-                        f2.close()
+                        users.update({"username":user},{"$set":{"email_date":date}})
+                        
                     else:
                         pass
 

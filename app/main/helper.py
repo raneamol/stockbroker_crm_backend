@@ -14,10 +14,14 @@ import en_core_web_sm
 from pprint import pprint
 import os
 
+import pandas as pd
+
 from ..extensions import mongo
 
 basedir=os.path.dirname(os.path.abspath(__file__))
 nlp_model = os.path.join(basedir, 'data/nlp_model')
+company_sec_id = os.path.join(basedir, 'data/company_id')
+
 
 
 
@@ -53,6 +57,8 @@ def check_nlp(sent):
     spacy_sent = spacy_sent.lower()
     sentence = sent
     sentence = sentence.lower()
+
+    data = pd.DataFrame(company_sec_id)
     
     if any(w in sentence for w in question)==True:
         return 0
@@ -74,12 +80,16 @@ def check_nlp(sent):
                 print(action)
 
             elif value[1]=='JJ':
-                company = value[0]
-                print(company)
+                c = value[0].upper()
+                company_count=data['symbol'].eq(c).sum()
+                if company_count>0:
+                    company = c
 
             elif value[1]=='NN':
-                company = value[0]
-                print(company)
+                c = value[0].upper()
+                datel_count=data['symbol'].eq(c).sum()
+                if company_count>0:
+                    company = c
 
         #spacy part to get amount and numvber of shares
         nlp = spacy.load(nlp_model)
