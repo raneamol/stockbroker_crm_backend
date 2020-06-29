@@ -20,7 +20,7 @@ from ..extensions import mongo
 
 basedir=os.path.dirname(os.path.abspath(__file__))
 nlp_model = os.path.join(basedir, 'data/nlp_model')
-company_sec_id = os.path.join(basedir, 'data/company_id')
+company_sec_id = os.path.join(basedir, 'data\company_id.csv')
 
 
 
@@ -58,7 +58,7 @@ def check_nlp(sent):
     sentence = sent
     sentence = sentence.lower()
 
-    data = pd.DataFrame(company_sec_id)
+    data = pd.DataFrame(pd.read_csv(company_sec_id))
     
     if any(w in sentence for w in question)==True:
         return 0
@@ -87,7 +87,7 @@ def check_nlp(sent):
 
             elif value[1]=='NN':
                 c = value[0].upper()
-                datel_count=data['symbol'].eq(c).sum()
+                company_count=data['symbol'].eq(c).sum()
                 if company_count>0:
                     company = c
 
