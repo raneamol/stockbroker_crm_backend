@@ -16,8 +16,6 @@ from ..helper import fetch_order, get_cost_from_text
 
 from app.api.send_email import send_email
 
-from app.api.get_stock_price import get_stock_price
-
 import re
 
 from app.utils.auth import token_required
@@ -53,7 +51,7 @@ def display_account(usr_id):
 	orders = mongo.Orders
 	
 	max_stage_order = orders.find({"account_id":usr_id}).sort("stage",-1).limit(1)
-	#accounts.update({"_id": ObjectId(usr_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
+
 	order_count = orders.count_documents({"account_id":usr_id})
 	if(order_count==0):
 		accounts.update({"_id": ObjectId(usr_id)}, {"$set": {"latest_order_stage": 0}})
@@ -87,7 +85,6 @@ def edit_account():
 	email = req_data["email"]
 	job_type = req_data["job_type"]
 	last_contact = req_data["last_contact"]
-	#last_contact = datetime.datetime.strptime(last_contact, "%Y-%m-%dT%H:%M:%S.%fZ")
 	latest_order_stage = req_data["latest_order_stage"]
 	marital_status = req_data["marital_status"]
 	name = req_data["name"]
@@ -202,7 +199,6 @@ def complete_all_orders():
 	elif bool(companies) == False and bool(orders_company) == False:
 		return "No companies to be transacted"
 	else:
-		#O(n)--> where n is the number of companies in stage 3, ie:better than number of orders
 		for i in companies:
 			a = re.compile(i, re.IGNORECASE)
 			orders.update_many({"company": a, "stage":3,"account_id": {"$in":account_id}},{"$set": {"cost_of_share": company[i]}})
@@ -407,8 +403,6 @@ for cost """+str(order["cost_of_share"])+""" is finalized"""
 		orders.update({"_id": _id},{"$set" : {"activity_id": str(activity[0]["_id"])}})
 	
 	elif stage == 0:
-		#current_price = get_stock_price(order["company"])
-		
 		orders.update({"_id":_id},{"$set": {"stage" : stage, "cost_of_share": company[order_company]}})
 		activities.update({"_id": ObjectId(order["activity_id"])},{"$set": {"activity_type": "past"}})
 		email_id = account["email"]
@@ -622,10 +616,6 @@ for cost """+str(order["cost_of_share"])+""" is finalized"""
 			send_email(account["email"] ,message,current_user["username"],email_pw)
 
 		elif order["stage"] == 3:
-			#try:
-			#	current_price = get_stock_price(order["company"])
-			#except:
-			#	current_price = 0.0
 			orders.update({"activity_id": _id},{"$set":{"stage": 0 , "cost_of_share": company[order_company]}})
 			order = orders.find_one({"activity_id":_id})
 			activities.update({"_id": ObjectId(_id)},{"$set":{"activity_type":activity_type}})
@@ -638,9 +628,6 @@ Your order to """+str(order["trans_type"]) +""" """+str(order["no_of_shares"])+"
 			
 			send_email(account["email"] ,message,current_user["username"],email_pw)
 		
-		#max_stage_order = orders.find({"account_id": order["account_id"]}).sort("stage",-1).limit(1)
-
-		#accounts.update({"_id": ObjectId(order["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 	
 	else:
 		activities.update({"_id": ObjectId(_id)},{"$set":{"activity_type":activity_type}})
@@ -672,15 +659,14 @@ def get_order_from_email():
 	all_accounts = accounts.find({"user_id": str(current_user["_id"])},{"_id": 1, "name": 1, "email": 1})
 
 	all_accounts = list(all_accounts)
-	#take all emails
+
 	accounts_email = [i['email'] for i in all_accounts]
-	#convert account id to set
+
 	accounts_email = set(accounts_email)
 
 	if order_list == []:
 		return "No new order"
 	else:
-	#if not any(d["From"] == email_id for d in order_list):
 		for i in order_list:
 			n_email = i["From"]
 			n_email = n_email.split('<')[1]
@@ -689,13 +675,6 @@ def get_order_from_email():
 			action = i["action"]
 			no_of_shares = i["no_of_shares"]
 			amount = i["amount"]
-
-			#accounts = mongo.Accounts
-			#orders = mongo.Orders
-			#activities = mongo.Activities
-			
-			#account = accounts.find_one({"email":email},{"_id": 1, "name": 1})
-			
 
 			if email in accounts_email:
 				abc = email		
@@ -710,9 +689,6 @@ def get_order_from_email():
 			title = "{} {} shares of {} for desired price:{}?".format(action.upper(),no_of_shares,company.upper(),price)
 			body = "Finalize order of {} to {} {} shares of {}. Desired Price:{}".format(account["name"],action,no_of_shares,company.upper(),price)
 			date = datetime.datetime.now() + timedelta(hours = 2)
-			#max_stage_order = orders.find({"account_id":str(account["_id"])}).sort("stage",-1).limit(1)
-
-			#accounts.update({"_id": account["_id"]}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 			activities.insert({"title": title, "body": body, "date": date, "activity_type": "future", "customer_id": str(account["_id"]), "elapsed":0, "ai_activity": 1})
 			activity = activities.find({}).sort("_id",-1).limit(1)
 			orders.insert({ "company": company, "no_of_shares": no_of_shares, "cost_of_share": price, "stage": 1, "account_id":str(account["_id"]), "trans_type": action,\
@@ -851,7 +827,7 @@ def convert_finalized_orders():
 				cost_of_share = company[order_company]
 
 			if (action == 'buy' and cost_of_share >= company[order_company]) or (action == 'sell' and cost_of_share <= company[order_company]):
-				order_ids.append(i["_id"])	#for updating orders to stage 3
+				order_ids.append(i["_id"])
 				
 				title = "Transact order for {}ing {} {} shares.".format(i["trans_type"],i["no_of_shares"],i["company"])
 				body = "Transact order of {} to {} {} shares of {}. Desired Price:{}".format(i["name"],i["trans_type"],i["no_of_shares"],\
@@ -859,7 +835,6 @@ def convert_finalized_orders():
 				date = datetime.datetime.now() + timedelta(hours = 10)
 				values.append({"title": title, "body":body, "date":date, "activity_type": "future",\
 				"customer_id": i["account_id"], "elapsed":0, "ai_activity": 1})
-		#list of values fgetting inserted insetead of multiple values///check on internet/think about it
 
 		
 		
@@ -894,9 +869,6 @@ def delete_activity(activity_id):
 		account_id = order["account_id"]
 		orders.delete_one({"activity_id": activity_id})
 		activities.delete_one({"_id": ObjectId(activity_id)})
-		#max_stage_order = orders.find({"account_id":account_id}).sort("stage",-1).limit(1)
-
-		#accounts.update({"_id": ObjectId(account_id)}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
 	return "activity deleted"
 
 #RENAME TO get_account_turnover--- DONE
@@ -916,57 +888,3 @@ def get_account_turnover(usr_id):
 	order = json.dumps(order[0], default = myconverter)
 	return order
 	
-'''
-#Change structure--DONE ALmost cocmpletely
-@accounts.route('/complete_all_orders')
-def complete_all_orders():	
-	accounts = mongo.Accounts
-	orders = mongo.Orders
-	activities = mongo.Activities	
-	
-	all_orders= orders.find({"stage":3})
-	all_orders = list(all_orders)
-	activity_id = [i['activity_id'] for i in all_orders]
-	activity_id = list(map(ObjectId,activity_id))
-	#order_id = [i['_id'] for i in all_orders]
-	#order_id = list(order_id)
-	
-	#orders.update({"_id":{"$in": order_id}},{"$set": {"cost_of_share": current_price}}, multi = True)
-	
-
-	all_accounts = accounts.find({},{"_id":1,"name":1,"email": 1})
-	all_accounts = list(all_accounts)
-	accounts_id = [i['_id'] for i in all_accounts]
-	all_accounts_id = list(map(str,accounts_id))
-	all_accounts_id = set(all_accounts_id)
-
-	orders.update_many({"stage" : 3},{"$set": {"stage" : 0}})
-	
-	activities.update({"_id":{"$in": activity_id}},{"$set": {"activity_type": "past"}}, multi = True)
-
-	for i in all_orders:
-		
-		if i["account_id"] in all_accounts_id:
-			abc = i["account_id"]		
-			account = next((sub for sub in all_accounts if sub['_id'] == ObjectId(abc)), None) 
-			
-		try:
-			current_price = get_stock_price(i["company"])
-		except:
-			current_price = 0.0
-		orders.update({"_id":i["_id"]},{"$set": {"cost_of_share": current_price}})
-		#activities.update({"_id": ObjectId(i["activity_id"])},{"$set": {"activity_type": "past"}})
-
-		#max_stage_order = orders.find({"account_id":i["account_id"]}).sort("stage",-1).limit(1)
-		#accounts.update({"_id": ObjectId(i["account_id"])}, { "$set": {"latest_order_stage": max_stage_order[0]["stage"]}})
-		message = """\
-Subject: Hi """+str(account["name"])+"""
-Hi """+str(account["name"])+""",
-Your order to """+str(i["trans_type"]) +""" """+str(i["no_of_shares"])+""" shares of """+str(i["company"])+"""\
-for cost Rs."""+str(current_price)+""" has been transacted."""
-
-		send_email(account["email"],message)
-		
-
-	return "All transacted orders have been archived"
-'''
