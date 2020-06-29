@@ -189,17 +189,14 @@ def complete_all_orders():
 	account_id = list(map(str,account_id))
 	all_orders= orders.find({"stage":3,"account_id":{"$in": account_id}})
 	all_orders = list(all_orders)
-	print(all_orders)
 	activity_id = [i['activity_id'] for i in all_orders]
 	activity_id = list(map(ObjectId,activity_id))
 	
 	orders_company = [i["company"].lower() for i in all_orders]
 	orders_company = set(orders_company)
-	print(orders_company)
 	company_keys = set(company)
 	company_values = set(company.values())
 	companies = orders_company.intersection(company_keys)
-	print(companies)
 	if bool(companies) == False and bool(orders_company) == True:
 		return "Send correct company"
 	elif bool(companies) == False and bool(orders_company) == False:
@@ -589,7 +586,7 @@ def change_activity_type():
 	activities = mongo.Activities
 	activity = activities.find_one({"_id":ObjectId(_id)})
 
-	if activity["ai_activity"]:
+	if activity["ai_activity"]==1:
 		company = req_data["company"]
 
 	activities = mongo.Activities
@@ -667,7 +664,6 @@ def get_order_from_email():
 	
 	
 	order_list = fetch_order(current_user["username"],email_pw)
-	print(order_list)
 
 	accounts = mongo.Accounts
 	orders = mongo.Orders
@@ -689,7 +685,6 @@ def get_order_from_email():
 			n_email = i["From"]
 			n_email = n_email.split('<')[1]
 			email = n_email.split('>')[0]
-			print(email)
 			company = i["company"]
 			action = i["action"]
 			no_of_shares = i["no_of_shares"]
@@ -713,7 +708,6 @@ def get_order_from_email():
 			else:
 				price = amount
 			title = "{} {} shares of {} for desired price:{}?".format(action.upper(),no_of_shares,company.upper(),price)
-			print(account["name"])
 			body = "Finalize order of {} to {} {} shares of {}. Desired Price:{}".format(account["name"],action,no_of_shares,company.upper(),price)
 			date = datetime.datetime.now() + timedelta(hours = 2)
 			#max_stage_order = orders.find({"account_id":str(account["_id"])}).sort("stage",-1).limit(1)
@@ -874,10 +868,7 @@ def convert_finalized_orders():
 			activities.insert(values)
 			inserted_activities = activities.find({}).sort("_id",-1).limit(len_order_ids)
 			inserted_activities = list(inserted_activities)
-			print("Inserted look below")
-			print(inserted_activities)
 			inserted_activities = inserted_activities[::-1]
-			print(inserted_activities)
 			activity_id = [i["_id"] for i in inserted_activities]
 			activity_id = list(map(str,activity_id))
 			
@@ -918,7 +909,6 @@ def get_account_turnover(usr_id):
 	order = orders.aggregate([{"$match": {"stage": 0, "account_id": usr_id}},{"$group":{"_id": "$account_id",\
 	"turnover": { "$sum": {"$multiply": ["$no_of_shares", "$cost_of_share"] }}}}])
 	order = list(order)
-	print(order)
 	try:
 		order[0].pop('_id',None)
 	except:
