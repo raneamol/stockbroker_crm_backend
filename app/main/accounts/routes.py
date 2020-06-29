@@ -586,7 +586,11 @@ def change_activity_type():
 	req_data = request.get_json()
 	_id = req_data["_id"]
 	activity_type = req_data["activity_type"]
-	company = req_data["company"]
+	activities = mongo.Activities
+	activity = activities.find_one({"_id":ObjectId(_id)})
+
+	if activity["ai_activity"]:
+		company = req_data["company"]
 
 	activities = mongo.Activities
 	orders = mongo.Orders

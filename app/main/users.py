@@ -43,7 +43,8 @@ def register():
     last_name = request.get_json()['last_name']
     email = request.get_json()['email']
     password = generate_password_hash(request.get_json()['password'], method = 'sha256')
-    cipher_key = environ.get("cipher_key")
+    crypt_key = environ.get("crypt_key")
+    cipher_key = crypt_key.encode('utf-8')
     cipher_suite = Fernet("cipher_key")
     email_pw = request.get_json()["email_pw"]
     email_pw = email_pw.encode('utf-8')
