@@ -19,7 +19,7 @@ from ..extensions import mongo
 
 basedir=os.path.dirname(os.path.abspath(__file__))
 nlp_model = os.path.join(basedir, 'data/nlp_model')
-company_sec_id = os.path.join(basedir, 'data\company_id.csv')
+company_sec_id = os.path.join(basedir, 'data/company_id.csv')
 
 
 
